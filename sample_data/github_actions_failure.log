@@ -1,0 +1,9 @@
+2026-06-22T11:02:10.1234567Z ##[group]Run pip install -r requirements.txt
+2026-06-22T11:02:10.2200000Z Collecting flask==3.0.0
+2026-06-22T11:02:11.5400000Z   Downloading flask-3.0.0-py3-none-any.whl (99 kB)
+2026-06-22T11:02:12.0100000Z Collecting reqests==2.31.0
+2026-06-22T11:02:14.8800000Z ##[error]ERROR: Could not find a version that satisfies the requirement reqests==2.31.0 (from versions: none)
+2026-06-22T11:02:14.9000000Z ##[error]ERROR: No matching distribution found for reqests==2.31.0
+2026-06-22T11:02:15.0100000Z ##[error]Process completed with exit code 1.
+2026-06-22T11:02:15.0200000Z ##[endgroup]
+2026-06-22T11:02:15.0300000Z ##[error]The job failed because the "Install dependencies" step exited with a non-zero status.
