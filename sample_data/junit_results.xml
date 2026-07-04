@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="pytest" tests="43" failures="1" errors="0" skipped="0" time="8.10">
+  <testsuite name="tests.test_payments" tests="3" failures="1" errors="0" skipped="0" time="2.41">
+    <testcase classname="tests.test_payments" name="test_charge_usd" time="0.30"/>
+    <testcase classname="tests.test_payments" name="test_refund" time="0.28"/>
+    <testcase classname="tests.test_payments" name="test_checkout" time="1.83">
+      <failure message="GatewayError: 500 Internal Server Error: unexpected field 'currency'">
+tests/test_payments.py:48: in test_checkout
+    resp = client.post("/checkout", json={"amount": 100, "currency": "EUR"})
+app/payments.py:73: in create_charge
+    return payment_gateway.charge(amount, currency)
+E   payment_gateway.GatewayError: 500 Internal Server Error: unexpected field 'currency'
+      </failure>
+    </testcase>
+  </testsuite>
+</testsuites>

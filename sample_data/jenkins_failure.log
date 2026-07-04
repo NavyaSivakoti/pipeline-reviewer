@@ -1,0 +1,16 @@
+Started by user admin
+[Pipeline] node
+[Pipeline] { (Build)
+[Pipeline] sh
++ mvn -q -DskipTests=false test
+[INFO] Scanning for projects...
+[INFO] Running com.app.auth.LoginTest
+[ERROR] Tests run: 12, Failures: 1, Errors: 0, Skipped: 0
+[ERROR] testLoginWithValidToken(com.app.auth.LoginTest)  Time elapsed: 0.42 s  <<< FAILURE!
+java.lang.AssertionError: expected:<200> but was:<401> (auth token rejected)
+	at com.app.auth.LoginTest.testLoginWithValidToken(LoginTest.java:58)
+[ERROR]
+[INFO] BUILD FAILURE
+[Pipeline] }
+[Pipeline] // node
+Finished: FAILURE

@@ -1,0 +1,17 @@
+2026-06-20T09:14:02Z [INFO] Starting CI run for commit a1b9f2c on branch feature/multi-currency-checkout
+2026-06-20T09:14:03Z [INFO] Step: Checkout repository ... OK
+2026-06-20T09:14:05Z [INFO] Step: Set up Python 3.11 ... OK
+2026-06-20T09:14:21Z [INFO] Step: Install dependencies (pip install -r requirements.txt) ... OK
+2026-06-20T09:14:22Z [INFO] Step: Lint (ruff) ... OK
+2026-06-20T09:14:23Z [INFO] Step: Run tests (pytest -q) ...
+2026-06-20T09:14:31Z [ERROR] ============================= FAILURES =============================
+2026-06-20T09:14:31Z [ERROR] ___________________________ test_checkout _________________________
+2026-06-20T09:14:31Z [ERROR] tests/test_payments.py:48: in test_checkout
+2026-06-20T09:14:31Z [ERROR]     resp = client.post("/checkout", json={"amount": 100, "currency": "EUR"})
+2026-06-20T09:14:31Z [ERROR] app/payments.py:73: in create_charge
+2026-06-20T09:14:31Z [ERROR]     return payment_gateway.charge(amount, currency)
+2026-06-20T09:14:31Z [ERROR] E   payment_gateway.GatewayError: 500 Internal Server Error: unexpected field 'currency'
+2026-06-20T09:14:31Z [ERROR] ------- generated mock report: payment_gateway mock v1.2 (does not support 'currency') -------
+2026-06-20T09:14:31Z [ERROR] 1 failed, 42 passed in 8.10s
+2026-06-20T09:14:32Z [ERROR] Step: Run tests (pytest -q) ... FAILED (exit code 1)
+2026-06-20T09:14:33Z [INFO] CI run finished: FAILURE
