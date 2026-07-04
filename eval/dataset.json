@@ -1,0 +1,37 @@
+[
+  {
+    "id": "gha_dependency",
+    "artifacts": ["sample_data/github_actions_failure.log"],
+    "expected_type": "dependency",
+    "expected_owner": "team-platform",
+    "expected_security": "flag"
+  },
+  {
+    "id": "payments_test",
+    "artifacts": ["sample_data/failing_pipeline.log", "sample_data/junit_results.xml"],
+    "expected_type": "test_failure",
+    "expected_owner": "team-billing",
+    "expected_security": "none"
+  },
+  {
+    "id": "jenkins_auth",
+    "artifacts": ["sample_data/jenkins_failure.log"],
+    "expected_type": "test_failure",
+    "expected_owner": "team-security",
+    "expected_security": "none"
+  },
+  {
+    "id": "flaky_test",
+    "artifacts": ["sample_data/flaky_test.log"],
+    "expected_type": "flaky",
+    "expected_owner": "team-platform",
+    "expected_security": "none"
+  },
+  {
+    "id": "lint_only",
+    "artifacts": ["sample_data/lint_failure.log"],
+    "expected_type": "lint",
+    "expected_owner": "team-platform",
+    "expected_security": "none"
+  }
+]

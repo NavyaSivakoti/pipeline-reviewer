@@ -1,0 +1,8 @@
+2026-06-22T14:03:00Z [INFO] Step: Run tests (pytest -q) ...
+2026-06-22T14:03:12Z [ERROR] ______________________ test_search_returns_results ______________________
+2026-06-22T14:03:12Z [ERROR] tests/test_search.py:31: in test_search_returns_results
+2026-06-22T14:03:12Z [ERROR]     results = search_client.query("laptop")
+2026-06-22T14:03:12Z [ERROR] E   TimeoutError: connection to search-service timed out after 5s
+2026-06-22T14:03:12Z [ERROR] ------- note: test_search_returns_results is a known FLAKY test (fails intermittently, passes on rerun) -------
+2026-06-22T14:03:12Z [ERROR] 1 failed, 60 passed in 12.00s
+2026-06-22T14:03:13Z [ERROR] Step: Run tests (pytest -q) ... FAILED (exit code 1)

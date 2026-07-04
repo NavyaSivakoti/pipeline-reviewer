@@ -1,0 +1,6 @@
+2026-06-22T16:45:00Z [INFO] Step: Install dependencies ... OK
+2026-06-22T16:45:01Z [INFO] Step: Lint (ruff) ...
+2026-06-22T16:45:02Z [ERROR] app/utils.py:12:1: F401 'os' imported but unused
+2026-06-22T16:45:02Z [ERROR] app/utils.py:40:80: E501 line too long (92 > 88)
+2026-06-22T16:45:02Z [ERROR] Found 2 errors.
+2026-06-22T16:45:02Z [ERROR] Step: Lint (ruff) ... FAILED (exit code 1)
