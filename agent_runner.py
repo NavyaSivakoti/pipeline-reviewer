@@ -8,6 +8,7 @@ errors; we retry with backoff instead of crashing (Day 4 reliability).
 import asyncio
 import os
 import re
+import sys
 import time
 import warnings
 
@@ -73,7 +74,7 @@ def run_agent(paths: list[str], on_event=None, max_retries: int = 6) -> dict:
             if _is_transient(err) and attempt < max_retries:
                 wait = _retry_delay(err, delay)
                 kind = "429 rate-limit" if ("429" in str(err) or "RESOURCE_EXHAUSTED" in str(err)) else "503 busy"
-                print(f"   ⏳ {kind}; waiting {wait:.0f}s then retry ({attempt}/{max_retries})")
+                print(f"   ⏳ {kind}; waiting {wait:.0f}s then retry ({attempt}/{max_retries})", file=sys.stderr)
                 time.sleep(wait)
                 delay = min(delay * 1.5, 65)
             else:
