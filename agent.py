@@ -31,6 +31,7 @@ root_agent = Agent(
         tools.read_log,
         tools.parse_junit_results,
         tools.fetch_github_actions_log,
+        tools.get_pr_changes,
         tools.lookup_owner,
         tools.check_package,
         tools.check_recurrence,
@@ -49,7 +50,10 @@ Steps:
 2. Use the REVIEW SKILL below to classify the failure and find the root cause.
 3. If it is a dependency failure, call check_package on the offending package name.
 4. Call lookup_owner with the key evidence to find the responsible team.
-5. Call check_recurrence with a short STABLE signature for this failure (the
+5. If a pull request is referenced (owner/repo + a PR number), call get_pr_changes
+   to inspect the changed files, and tie the root cause to the specific change when
+   the failure maps to one (e.g. "this PR changed app/payments.py, which is where it broke").
+6. Call check_recurrence with a short STABLE signature for this failure (the
    failing test name, or "dependency: <package>") AND your suggested_fix. Use the
    result for the Recurrence line: if seen before, state how many times, when it
    first appeared, how often it recurs, and the PREVIOUS fix; else "first occurrence".
