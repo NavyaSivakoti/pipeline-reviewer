@@ -36,10 +36,6 @@ both **Python (PyPI)** and **Java (Maven Central)** — pass the name as written
 auto-detected. If it is a typosquat or missing from the registry, add a clear
 **⚠️ supply-chain risk** warning.
 
-## 5. Owner
-Call `lookup_owner` with the key evidence (file paths, package names, error) to
-find the responsible team.
-
-## 6. Confidence + verify
+## 5. Confidence + verify
 State confidence (High / Medium / Low) and the exact command to verify the fix
 (e.g. `pytest tests/test_payments.py::test_checkout`).

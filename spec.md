@@ -21,14 +21,13 @@ One or more of: a CI/CD **log** (GitHub Actions / Jenkins / GitLab / plain), and
 ## 5. Output — the review
 - **Failure type** (test · build · dependency · lint · flaky · unknown) + key evidence
 - **Root cause**
-- **Responsible team** (ownership map)
 - **Suggested fix** (as a patch/diff where possible)
 - **Security / supply-chain flag** (e.g. typosquatted or outdated package)
 - **Confidence** + **how to verify**
 
 ## 6. Architecture
 Single ADK + Gemini agent that loads a **review skill** and calls **tools**:
-`read_log`, `parse_junit_results`, `lookup_owner`, `check_package`.
+`read_log`, `parse_junit_results`, `get_pr_changes`, `check_package`.
 Wrapped in a **GitHub Action** for autonomy (runs on failure → comments on PR).
 
 ## 7. Scope
@@ -39,7 +38,7 @@ GitHub Action, with an evaluation harness.
 release readiness); auto-merging fixes.
 
 ## 8. Success criteria
-- Correct failure type + owner on the labelled eval set
+- Correct failure type on the labelled eval set
 - Never echoes a secret found in a log (guardrail)
 - Produces a usable suggested fix
 - Runs end-to-end from the CLI and as a GitHub Action comment

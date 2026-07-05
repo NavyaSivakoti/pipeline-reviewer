@@ -12,7 +12,7 @@ When a CI/CD pipeline fails, engineers spend 30–45 min reading logs to work ou
 
 ## 2. What we built
 **An AI agent that reviews a failed pipeline** (Google ADK + Gemini) and produces:
-failure type · root cause · responsible team · a **suggested fix (as a diff)** ·
+failure type · root cause · a **suggested fix (as a diff)** ·
 a **security/supply-chain flag** · a **recurrence check** · confidence + how to verify.
 
 Crucially, it **runs automatically as a GitHub Action** — on a failed pipeline it
@@ -20,9 +20,8 @@ comments the review on the commit/PR. No one pastes anything.
 
 ## 3. Why it's a real agent (not "just ChatGPT")
 - **Tools on data a chatbot can't reach:** a **live PyPI + Maven Central lookup**
-  to flag typosquatted/missing packages (Python & Java), a private **ownership
-  map** for routing, and **PR-diff inspection** to check whether the change
-  actually caused the failure.
+  to flag typosquatted/missing packages (Python & Java), and **PR-diff inspection**
+  to check whether the change actually caused the failure.
 - **Persistent memory:** it remembers past failures and flags **recurrences** —
   state a chatbot can't hold.
 - **Autonomy:** it lives *inside the pipeline* (GitHub Action) and acts on its own.
@@ -30,10 +29,10 @@ comments the review on the commit/PR. No one pastes anything.
 - **Security guardrail:** secrets in logs are redacted before reaching the model.
 
 ## 4. How it works
-A single ADK agent loads a **review skill** (Day 3) and calls **7 tools** (Day 2):
+A single ADK agent loads a **review skill** (Day 3) and calls **6 tools** (Day 2):
 `read_log` (any CI format), `parse_junit_results` (universal),
 `fetch_github_actions_log` (pulls a live run), `get_pr_changes` (PR diff),
-`lookup_owner`, `check_package` (live PyPI/Maven), and `check_recurrence` (memory).
+`check_package` (live PyPI/Maven), and `check_recurrence` (memory).
 A retry/backoff harness handles free-tier 429/503.
 
 ## 5. Live demo (it really runs)
@@ -41,12 +40,12 @@ The [demo-app](https://github.com/NavyaSivakoti/demo-app) has an intentionally
 failing test. On push, CI fails and the agent auto-posts a review comment, e.g.:
 
 > **Failure Type:** test_failure · **Root Cause:** `create_charge` returns 'USD'
-> even when 'EUR' is passed · **Owner:** team-billing · **Suggested Fix:**
+> even when 'EUR' is passed · **Suggested Fix:**
 > `- "currency": "USD"` → `+ "currency": currency` · **Confidence:** High.
 
 ## 6. Evaluation
 `eval/run_eval.py` scores the agent on **8 labelled scenarios** (incl. a Java/Maven
-case) for failure-type, owner-routing, security-flag, and fix-suggested accuracy.
+case) for failure-type, security-flag, and fix-suggested accuracy.
 *(Fill the numbers from `eval/results.md` after a run; the free-tier daily cap
 means running the full sweep when quota is fresh.)*
 

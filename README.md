@@ -36,10 +36,10 @@ environmental instead.
                                        └──────────────┬──────────────┘
      tools ───────────────────────────────────────────┤
      read_log · parse_junit_results · fetch_github_actions_log · get_pr_changes
-     lookup_owner · check_package (live PyPI/Maven) · check_recurrence
+     check_package (live PyPI/Maven) · check_recurrence
                                                         │
                                                         ▼
-                    review: type · root cause · owner · fix diff ·
+                    review: type · root cause · fix diff ·
                     security flag · recurrence · confidence
                                                         │
                      printed locally  ──OR──  posted as a commit/PR comment
@@ -55,7 +55,6 @@ and reasons over tool output. `agent_runner.py` adds retry/backoff for the free 
 | `parse_junit_results` | Parses JUnit/pytest XML (universal) | exact, reliable parsing |
 | `fetch_github_actions_log` | Pulls a run's logs **directly from GitHub** | acts on live data — no file needed |
 | `get_pr_changes` | Inspects the **files changed in the PR** | tests whether the PR caused it — vs pre-existing/flaky |
-| `lookup_owner` | Routes to the responsible team | uses your **private** ownership map |
 | `check_package` | **Live PyPI + Maven Central** lookup for typosquat/missing packages (Python & Java) | data a chatbot can't fetch |
 | `check_recurrence` | Remembers past failures, flags recurrences | **persistent memory** — a chatbot can't |
 
@@ -66,6 +65,10 @@ intentionally failing test, so CI goes red and the agent auto-reviews it:
 - **A commit it reviewed:** <https://github.com/NavyaSivakoti/demo-app/commit/bc5816ff0d5d88efac0ccbe1904f2d1ee87bb2b8#commitcomment-191213335>
 - **A failed run:** <https://github.com/NavyaSivakoti/demo-app/actions/runs/28689439589>
 - **The workflow (actions pinned to SHAs):** [demo-app/.github/workflows/ci.yml](https://github.com/NavyaSivakoti/demo-app/blob/main/.github/workflows/ci.yml)
+
+On a **pull request**, the workflow passes the PR to the reviewer (`ci_review.py --pr owner/repo#number`),
+so it calls `get_pr_changes`, inspects the diff, and ties the failure to the specific change
+(the **PR author** is the one who fixes it) — or clears the PR when the failure is pre-existing.
 
 A copy of the posted review is in [`examples/example_review.md`](examples/example_review.md).
 
@@ -83,19 +86,19 @@ cp .env.example .env          # paste your free Gemini key (aistudio.google.com/
 > Free-tier note: ~5 req/min and ~20/day per model; the runner auto-retries 429/503.
 
 ## Evaluation Results
-`eval/run_eval.py` scores the agent against **8 labelled scenarios** on four axes:
-**failure-type**, **owner-routing**, **security-flag**, and **fix-suggested** accuracy.
+`eval/run_eval.py` scores the agent against **8 labelled scenarios** on three axes:
+**failure-type**, **security-flag**, and **fix-suggested** accuracy.
 
-| Scenario | Expected type | Expected owner |
-|----------|---------------|----------------|
-| GitHub Actions dependency (typosquat) | dependency | team-platform |
-| Payments test failure | test_failure | team-billing |
-| Jenkins auth test failure | test_failure | team-security |
-| Flaky test | flaky | team-platform |
-| Lint-only | lint | team-platform |
-| Docker build (missing build deps) | build | team-platform |
-| Integration test (DB not ready) | test_failure | team-platform |
-| Maven/Java dependency (typosquat) | dependency | team-platform |
+| Scenario | Expected type | Security flag |
+|----------|---------------|---------------|
+| GitHub Actions dependency (typosquat) | dependency | flag |
+| Payments test failure | test_failure | none |
+| Jenkins auth test failure | test_failure | none |
+| Flaky test | flaky | none |
+| Lint-only | lint | none |
+| Docker build (missing build deps) | build | none |
+| Integration test (DB not ready) | test_failure | none |
+| Maven/Java dependency (typosquat) | dependency | flag |
 
 Run `python eval/run_eval.py` → writes `eval/results.md`. *(The free-tier daily cap
 means running the full sweep when quota is fresh; the scoring logic is unit-tested.)*
@@ -134,7 +137,7 @@ diagnosed and fixed.
 | Day | Concept | Where |
 |-----|---------|-------|
 | 1 | Agent + context engineering + harness + **memory** | clean parsed evidence; the Action is the harness; `check_recurrence` |
-| 2 | Tools + interoperability | 7 tools incl. live PyPI + Maven Central; GitHub PR/run integration |
+| 2 | Tools + interoperability | 6 tools incl. live PyPI + Maven Central; GitHub PR/run integration |
 | 3 | Agent Skills | `skills/review.md`, loaded by the agent |
 | 4 | Security + evaluation | redaction (tested) + supply-chain flag + `eval/` |
 | 5 | Spec-driven + human-in-the-loop | `spec.md` first; agent suggests, human applies |

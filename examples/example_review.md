@@ -20,8 +20,6 @@ the [demo-app](https://github.com/NavyaSivakoti/demo-app), with no human involve
 **Root Cause:** The `create_charge` function returns 'USD' as the currency, even
 when 'EUR' is passed as an argument.
 
-**Responsible Team:** team-billing
-
 **Suggested Fix:** Use the `currency` argument instead of defaulting to 'USD'.
 
 ```diff

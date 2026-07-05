@@ -17,7 +17,6 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-OWNERSHIP_FILE = os.path.join(BASE, "sample_data", "ownership_map.json")
 MEMORY_FILE = os.path.join(BASE, "memory", "failures.json")
 
 
@@ -109,26 +108,6 @@ def parse_junit_results(file_path: str) -> dict:
         "failures": failures,
         "failed_tests": failed_tests,
     }
-
-
-# --------------------------------------------------------------------------
-# Ownership lookup: evidence text -> responsible team
-# --------------------------------------------------------------------------
-def lookup_owner(context_text: str) -> dict:
-    """Find the responsible team for a failure by scanning evidence text for
-    keywords in the ownership map (e.g. 'payments' -> team-billing).
-
-    Args:
-        context_text: error lines / file paths / failed test names to scan.
-    """
-    with open(OWNERSHIP_FILE) as f:
-        data = json.load(f)
-    rules = data.get("rules", {})
-    haystack = context_text.lower()
-    for keyword, team in rules.items():
-        if keyword.lower() in haystack:
-            return {"owner": team, "matched_keyword": keyword}
-    return {"owner": data.get("default", "team-platform"), "matched_keyword": None}
 
 
 # --------------------------------------------------------------------------
