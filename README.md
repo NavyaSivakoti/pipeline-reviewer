@@ -46,7 +46,8 @@ environmental instead.
                                               by the GitHub Action (autonomy)
 ```
 A single, focused agent loads its expertise from a **skill file** (`skills/review.md`)
-and reasons over tool output. `agent_runner.py` adds retry/backoff for the free tier.
+and reasons over tool output. `agent_runner.py` adds retry/backoff **and a
+completeness guard** (never posts a blank/truncated review) for the free tier.
 
 ## Tools Used
 | Tool | What it does | Why it's more than a chatbot |
@@ -123,7 +124,9 @@ diagnosed and fixed.
   readiness (that needs coverage, security scans, e2e, sign-off). We deliberately scoped that out.
 - **Recurrence memory is local**, not shared across CI runs (each Action run is a fresh
   checkout, so in CI it reports "first occurrence").
-- Free-tier Gemini is rate-limited and occasionally overloaded (429/503); the runner retries.
+- Free-tier Gemini is rate-limited and occasionally overloaded (429/503), and can
+  return a blank/truncated review; the runner retries on all of these and posts an
+  honest "re-run" placeholder rather than a mangled comment.
 
 ## Future Work
 - Persist recurrence memory across CI runs (cache/artifact) + trend insights.
