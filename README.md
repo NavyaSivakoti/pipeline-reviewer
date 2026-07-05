@@ -67,9 +67,6 @@ intentionally failing test, so CI goes red and the agent auto-reviews it:
 - **A failed run:** <https://github.com/NavyaSivakoti/demo-app/actions/runs/28689439589>
 - **The workflow (actions pinned to SHAs):** [demo-app/.github/workflows/ci.yml](https://github.com/NavyaSivakoti/demo-app/blob/main/.github/workflows/ci.yml)
 
-![The AI Pipeline Reviewer commenting on a failed commit](docs/pr-comment.png)
-<!-- Add the screenshot: open the comment link above, screenshot it, save as docs/pr-comment.png -->
-
 A copy of the posted review is in [`examples/example_review.md`](examples/example_review.md).
 
 **Run it locally**
@@ -112,7 +109,7 @@ diagnosed and fixed.
   the model.**
 - **Proven by tests:** [`tests/test_redaction.py`](tests/test_redaction.py) verifies
   redaction on every model-input path (`redact_secrets`, `read_log`,
-  `parse_junit_results`). Run `pytest` — 4 tests pass.
+  `parse_junit_results`). Run `pytest` — 10 tests pass (redaction + supply-chain).
 - **Supply-chain awareness:** flags typosquatted / missing packages (Day-4 concept).
 - **Secrets stay out of git:** the API key lives in `.env` (git-ignored); in CI it's a
   GitHub Actions secret.
