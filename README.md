@@ -1,7 +1,7 @@
 # CI/CD Pipeline Reviewer Agent
 
 > An AI agent (**Google ADK + Gemini**) that reviews a failed CI/CD pipeline —
-> what broke, why, who owns it, and how to fix it — and runs **automatically as a
+> what broke, why, and how to fix it — and runs **automatically as a
 > GitHub Action**, commenting the review on your commit/PR.
 
 Built for the **Kaggle × Google "AI Agents: Intensive Vibe Coding" capstone.**
@@ -12,9 +12,8 @@ Built for the **Kaggle × Google "AI Agents: Intensive Vibe Coding" capstone.**
 
 ## Problem
 When a CI/CD pipeline fails, engineers spend **30–45 minutes** reading build logs,
-test reports, and configs just to answer four questions: *what failed, why, who
-should fix it, and how do I fix it?* It's slow, inconsistent, and easy to route to
-the wrong person.
+test reports, and configs just to answer three questions: *what failed, why, and
+how do I fix it?* It's slow and inconsistent.
 
 ## Solution
 An AI agent that does that review in seconds and **comes to you**: on a failed
