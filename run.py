@@ -20,7 +20,7 @@ def _show_tool_calls(event) -> None:
     try:
         for part in (event.content.parts or []):
             if getattr(part, "function_call", None):
-                print(f"   🔧 calling tool: {part.function_call.name}()", file=sys.stderr)
+                print(f"   -> calling tool: {part.function_call.name}()", file=sys.stderr)
     except AttributeError:
         pass
 

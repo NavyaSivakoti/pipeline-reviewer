@@ -1,4 +1,4 @@
-# 🚦 CI/CD Pipeline Reviewer Agent
+# CI/CD Pipeline Reviewer Agent
 
 > An AI agent (**Google ADK + Gemini**) that reviews a failed CI/CD pipeline —
 > what broke, why, who owns it, and how to fix it — and runs **automatically as a
@@ -62,10 +62,10 @@ and reasons over tool output. `agent_runner.py` adds retry/backoff for the free 
 ## Demo
 **See it live** — the [demo-app](https://github.com/NavyaSivakoti/demo-app) has an
 intentionally failing test, so CI goes red and the agent auto-reviews it:
-- 🔀 **A pull request it reviewed:** <https://github.com/NavyaSivakoti/demo-app/pull/1> (comment posted on the PR)
-- 💬 **A commit it reviewed:** <https://github.com/NavyaSivakoti/demo-app/commit/bc5816ff0d5d88efac0ccbe1904f2d1ee87bb2b8#commitcomment-191213335>
-- ▶️ **A failed run:** <https://github.com/NavyaSivakoti/demo-app/actions/runs/28689439589>
-- ⚙️ **The workflow (actions pinned to SHAs):** [demo-app/.github/workflows/ci.yml](https://github.com/NavyaSivakoti/demo-app/blob/main/.github/workflows/ci.yml)
+- **A pull request it reviewed:** <https://github.com/NavyaSivakoti/demo-app/pull/1> (comment posted on the PR)
+- **A commit it reviewed:** <https://github.com/NavyaSivakoti/demo-app/commit/bc5816ff0d5d88efac0ccbe1904f2d1ee87bb2b8#commitcomment-191213335>
+- **A failed run:** <https://github.com/NavyaSivakoti/demo-app/actions/runs/28689439589>
+- **The workflow (actions pinned to SHAs):** [demo-app/.github/workflows/ci.yml](https://github.com/NavyaSivakoti/demo-app/blob/main/.github/workflows/ci.yml)
 
 ![The AI Pipeline Reviewer commenting on a failed commit](docs/pr-comment.png)
 <!-- Add the screenshot: open the comment link above, screenshot it, save as docs/pr-comment.png -->
