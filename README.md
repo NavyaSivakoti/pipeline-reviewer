@@ -21,7 +21,10 @@ An AI agent that does that review in seconds and **comes to you**: on a failed
 pipeline it runs inside GitHub Actions and posts a review comment with the root
 cause and a **suggested fix diff** — no one has to paste anything. It also flags
 **supply-chain risks** (via a live PyPI check), remembers **recurring** failures,
-and is backed by an **evaluation harness** and **security tests**.
+and is backed by an **evaluation harness** and **security tests**. When a PR is
+involved it checks the changed files and is careful **not to blame the PR for
+failures in code it didn't touch** — flagging those as pre-existing, flaky, or
+environmental instead.
 
 ## Agent Architecture
 ```
@@ -50,7 +53,7 @@ and reasons over tool output. `agent_runner.py` adds retry/backoff for the free 
 | `read_log` | Reads any CI log (GitHub Actions/Jenkins/GitLab) | format-agnostic + redacts secrets |
 | `parse_junit_results` | Parses JUnit/pytest XML (universal) | exact, reliable parsing |
 | `fetch_github_actions_log` | Pulls a run's logs **directly from GitHub** | acts on live data — no file needed |
-| `get_pr_changes` | Inspects the **files changed in the PR** | ties the failure to the actual change |
+| `get_pr_changes` | Inspects the **files changed in the PR** | tests whether the PR caused it — vs pre-existing/flaky |
 | `lookup_owner` | Routes to the responsible team | uses your **private** ownership map |
 | `check_package` | **Live PyPI** lookup for typosquat/missing packages | data a chatbot can't fetch |
 | `check_recurrence` | Remembers past failures, flags recurrences | **persistent memory** — a chatbot can't |
@@ -132,7 +135,7 @@ diagnosed and fixed.
 | Day | Concept | Where |
 |-----|---------|-------|
 | 1 | Agent + context engineering + harness + **memory** | clean parsed evidence; the Action is the harness; `check_recurrence` |
-| 2 | Tools + interoperability | 6 tools incl. live PyPI; GitHub integration |
+| 2 | Tools + interoperability | 7 tools incl. live PyPI; GitHub PR/run integration |
 | 3 | Agent Skills | `skills/review.md`, loaded by the agent |
 | 4 | Security + evaluation | redaction (tested) + supply-chain flag + `eval/` |
 | 5 | Spec-driven + human-in-the-loop | `spec.md` first; agent suggests, human applies |

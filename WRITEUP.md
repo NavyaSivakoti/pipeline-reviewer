@@ -20,15 +20,20 @@ comments the review on the commit/PR. No one pastes anything.
 
 ## 3. Why it's a real agent (not "just ChatGPT")
 - **Tools on data a chatbot can't reach:** a **live PyPI lookup** to flag
-  typosquatted/missing packages, plus a private **ownership map** for routing.
+  typosquatted/missing packages, a private **ownership map** for routing, and
+  **PR-diff inspection** to check whether the change actually caused the failure.
+- **Persistent memory:** it remembers past failures and flags **recurrences** —
+  state a chatbot can't hold.
 - **Autonomy:** it lives *inside the pipeline* (GitHub Action) and acts on its own.
 - **Evaluated:** an eval harness scores it against labelled cases.
 - **Security guardrail:** secrets in logs are redacted before reaching the model.
 
 ## 4. How it works
-A single ADK agent loads a **review skill** (Day 3) and calls **tools** (Day 2):
-`read_log` (any CI format), `parse_junit_results` (universal), `lookup_owner`,
-and `check_package` (live PyPI). A retry/backoff harness handles free-tier 429/503.
+A single ADK agent loads a **review skill** (Day 3) and calls **7 tools** (Day 2):
+`read_log` (any CI format), `parse_junit_results` (universal),
+`fetch_github_actions_log` (pulls a live run), `get_pr_changes` (PR diff),
+`lookup_owner`, `check_package` (live PyPI), and `check_recurrence` (memory).
+A retry/backoff harness handles free-tier 429/503.
 
 ## 5. Live demo (it really runs)
 The [demo-app](https://github.com/NavyaSivakoti/demo-app) has an intentionally
@@ -58,7 +63,7 @@ sweep when quota is fresh.)*
 ## 9. Limitations & future work
 - Root cause / fixes are best-effort LLM suggestions; a human applies them.
 - Out of scope: release GO/NO-GO (a single failure can't determine release readiness).
-- Next: failure memory/recurrence, an MCP server (tools usable from Cursor/Claude).
+- Next: persist recurrence memory across CI runs, an MCP server (tools usable from Cursor/Claude).
 
 ---
 
