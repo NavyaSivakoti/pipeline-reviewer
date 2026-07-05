@@ -27,8 +27,18 @@ USER = "local_user"
 _TRANSIENT = ("RESOURCE_EXHAUSTED", "UNAVAILABLE", "503", "429")
 
 
-def build_message(paths: list[str]) -> str:
-    return "A CI/CD pipeline failed. Review it.\nArtifacts: " + ", ".join(paths)
+def build_message(paths: list[str], pr_ref: str | None = None) -> str:
+    msg = "A CI/CD pipeline failed. Review it.\nArtifacts: " + ", ".join(paths)
+    if pr_ref:
+        repo, _, num = pr_ref.partition("#")
+        msg += (
+            f"\n\nThis failure occurred on pull request #{num} of {repo}. "
+            f'Call get_pr_changes with repo="{repo}" and pr_number="{num}" to see the '
+            "files this PR changed, then state whether the failure is in code this PR "
+            "changed (likely introduced by it) or in code it did not touch (likely "
+            "pre-existing, flaky, or environmental)."
+        )
+    return msg
 
 
 def _is_transient(err: Exception) -> bool:
@@ -41,10 +51,10 @@ def _retry_delay(err: Exception, fallback: float) -> float:
     return (float(m.group(1)) + 2) if m else fallback
 
 
-async def _run_once(paths: list[str], on_event=None) -> dict:
+async def _run_once(paths: list[str], on_event=None, pr_ref=None) -> dict:
     runner = InMemoryRunner(agent=root_agent, app_name=APP)
     session = await runner.session_service.create_session(app_name=APP, user_id=USER)
-    message = types.Content(role="user", parts=[types.Part(text=build_message(paths))])
+    message = types.Content(role="user", parts=[types.Part(text=build_message(paths, pr_ref))])
     async for event in runner.run_async(user_id=USER, session_id=session.id, new_message=message):
         if on_event:
             on_event(event)
@@ -64,12 +74,12 @@ def _ensure_loop():
     return _LOOP
 
 
-def run_agent(paths: list[str], on_event=None, max_retries: int = 6) -> dict:
+def run_agent(paths: list[str], on_event=None, max_retries: int = 6, pr_ref: str | None = None) -> dict:
     delay = 10.0
     loop = _ensure_loop()
     for attempt in range(1, max_retries + 1):
         try:
-            return loop.run_until_complete(_run_once(paths, on_event))
+            return loop.run_until_complete(_run_once(paths, on_event, pr_ref))
         except Exception as err:  # noqa: BLE001
             if _is_transient(err) and attempt < max_retries:
                 wait = _retry_delay(err, delay)
