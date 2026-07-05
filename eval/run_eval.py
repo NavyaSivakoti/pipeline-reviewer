@@ -1,5 +1,5 @@
 """
-run_eval.py — the evaluation harness (Day 4).
+run_eval.py — the evaluation harness.
 
 Runs the Pipeline Reviewer on labelled CI/CD failures and scores:
   1. Failure-type accuracy
