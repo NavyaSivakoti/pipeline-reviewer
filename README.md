@@ -31,7 +31,7 @@ and is backed by an **evaluation harness** and **security tests**.
                                        │   loads skills/review.md    │
                                        └──────────────┬──────────────┘
      tools ───────────────────────────────────────────┤
-     read_log · parse_junit_results · fetch_github_actions_log
+     read_log · parse_junit_results · fetch_github_actions_log · get_pr_changes
      lookup_owner · check_package (live PyPI) · check_recurrence
                                                         │
                                                         ▼
@@ -50,6 +50,7 @@ and reasons over tool output. `agent_runner.py` adds retry/backoff for the free 
 | `read_log` | Reads any CI log (GitHub Actions/Jenkins/GitLab) | format-agnostic + redacts secrets |
 | `parse_junit_results` | Parses JUnit/pytest XML (universal) | exact, reliable parsing |
 | `fetch_github_actions_log` | Pulls a run's logs **directly from GitHub** | acts on live data — no file needed |
+| `get_pr_changes` | Inspects the **files changed in the PR** | ties the failure to the actual change |
 | `lookup_owner` | Routes to the responsible team | uses your **private** ownership map |
 | `check_package` | **Live PyPI** lookup for typosquat/missing packages | data a chatbot can't fetch |
 | `check_recurrence` | Remembers past failures, flags recurrences | **persistent memory** — a chatbot can't |
