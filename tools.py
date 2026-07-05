@@ -34,7 +34,7 @@ _SECRET_PATTERNS = [
     re.compile(r"sk-[0-9A-Za-z]{16,}"),
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"ghp_[0-9A-Za-z]{20,}"),
-    re.compile(r"(?i)\b(password|passwd|secret|token|api[_-]?key)\s*[=:]\s*\S+"),
+    re.compile(r"(?i)\b(password|passwd|secret|token|api[_-]?key)[ \t]*[=:][ \t]*\S+"),
     re.compile(r"(?i)bearer\s+[0-9A-Za-z\.\-_]{12,}"),
 ]
 

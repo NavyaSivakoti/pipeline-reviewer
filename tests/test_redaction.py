@@ -46,6 +46,17 @@ def test_read_log_redacts_before_model_input():
         assert leaked not in text, f"{leaked} would have reached the model"
 
 
+def test_redaction_does_not_span_lines():
+    """A benign 'password:' in a code diff must not swallow the next line,
+    while a real single-line secret assignment is still redacted."""
+    code = "if user == password:\n    return True"
+    out = tools.redact_secrets(code)
+    assert "return True" in out, "redaction over-matched across the newline"
+
+    leak = "password=hunter2secretvalue"
+    assert "[REDACTED]" in tools.redact_secrets(leak), "real secret not redacted"
+
+
 def test_parse_junit_redacts_before_model_input(tmp_path):
     """parse_junit_results is a model-input path — its output must be clean."""
     xml = (
