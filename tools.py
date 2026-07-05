@@ -49,7 +49,15 @@ def redact_secrets(text: str) -> str:
 # --------------------------------------------------------------------------
 # Generic log reader — works for ANY CI tool (GitHub Actions, Jenkins, GitLab)
 # --------------------------------------------------------------------------
-_ERROR_LINE = re.compile(r"error|fail|assert|traceback|exception", re.I)
+# Error/failure markers for Python + Java CI logs. Case-insensitive. Kept broad
+# on purpose so a root cause is surfaced even when phrased without "error".
+_ERROR_LINE = re.compile(
+    r"error|fail|assert|traceback|exception|caused by|fatal|"
+    r"segfault|segmentation fault|core dumped|killed|out of memory|"
+    r"timeout|timed out|cannot find symbol|could not (?:find|resolve)|"
+    r"no module named|connection refused",
+    re.I,
+)
 
 
 def read_log(file_path: str) -> dict:
@@ -338,7 +346,7 @@ def fetch_github_actions_log(repo: str, run_id: str) -> dict:
 
     text = redact_secrets(out.stdout)
     lines = text.splitlines()
-    important = [ln for ln in lines if re.search(r"error|fail|assert|traceback|exception", ln, re.I)]
+    important = [ln for ln in lines if _ERROR_LINE.search(ln)]
     shown = important[:80] or lines[-80:]
     return {
         "artifact_type": "github_actions_log",
