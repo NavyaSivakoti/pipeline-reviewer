@@ -281,3 +281,42 @@ def fetch_github_actions_log(repo: str, run_id: str) -> dict:
         "line_count": len(lines),
         "log_text": "\n".join(shown[:120]),
     }
+
+
+# --------------------------------------------------------------------------
+# Inspect the files changed in a PR — tie the failure to the actual change
+# --------------------------------------------------------------------------
+def get_pr_changes(repo: str, pr_number: str) -> dict:
+    """List the files changed in a pull request (and a trimmed diff), so the
+    review can tie the failure to the specific code change that caused it.
+
+    Args:
+        repo: 'owner/repo' (e.g. 'NavyaSivakoti/demo-app').
+        pr_number: the pull-request number.
+    """
+    try:
+        names = subprocess.run(
+            ["gh", "pr", "diff", str(pr_number), "--repo", repo, "--name-only"],
+            capture_output=True, text=True, timeout=60,
+        )
+        diff = subprocess.run(
+            ["gh", "pr", "diff", str(pr_number), "--repo", repo],
+            capture_output=True, text=True, timeout=60,
+        )
+    except FileNotFoundError:
+        return {"error": "gh CLI not available in this environment"}
+    except subprocess.TimeoutExpired:
+        return {"error": "gh timed out"}
+    if names.returncode != 0:
+        return {"error": f"gh failed: {names.stderr[:200]}"}
+
+    changed = [f for f in names.stdout.splitlines() if f.strip()]
+    diff_lines = redact_secrets(diff.stdout).splitlines()
+    if len(diff_lines) > 150:
+        diff_lines = diff_lines[:150] + [f"... ({len(diff_lines) - 150} more diff lines) ..."]
+    return {
+        "repo": repo,
+        "pr_number": str(pr_number),
+        "changed_files": changed[:50],
+        "diff": "\n".join(diff_lines),
+    }
