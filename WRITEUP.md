@@ -44,8 +44,8 @@ failing test. On push, CI fails and the agent auto-posts a review comment, e.g.:
 > `- "currency": "USD"` → `+ "currency": currency` · **Confidence:** High.
 
 ## 6. Evaluation
-`eval/run_eval.py` scores the agent on **8 labelled scenarios** (incl. a Java/Maven
-case) for failure-type, security-flag, and fix-suggested accuracy.
+`eval/run_eval.py` scores the agent on **10 labelled scenarios** (incl. Java/Maven,
+deploy, and config cases) for failure-type, security-flag, and fix-suggested accuracy.
 *(Fill the numbers from `eval/results.md` after a run; the free-tier daily cap
 means running the full sweep when quota is fresh.)*
 

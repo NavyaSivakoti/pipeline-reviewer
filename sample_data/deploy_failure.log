@@ -1,0 +1,11 @@
+2026-07-05T14:02:10 [INFO ] [build] Building Docker image acme/payments:sha-7c1f9
+2026-07-05T14:03:44 [INFO ] [build] Successfully built and tagged acme/payments:sha-7c1f9
+2026-07-05T14:03:58 [INFO ] [push]  Pushed acme/payments:sha-7c1f9 to registry (8 layers, 214 MB)
+2026-07-05T14:04:12 [INFO ] [deploy-staging] Applying kubernetes manifest deployment.yaml
+2026-07-05T14:04:20 [INFO ] [deploy-staging] Rolling out deployment/payments (2 replicas)
+2026-07-05T14:05:05 [WARN ] [deploy-staging] Pod payments-7c1f9-abc12 not ready: readiness probe GET /healthz returned 503
+2026-07-05T14:06:40 [WARN ] [deploy-staging] Pod payments-7c1f9-def34 not ready: readiness probe GET /healthz returned 503
+2026-07-05T14:07:10 [ERROR] [deploy-staging] Deployment failed: readiness probe never passed after 180s
+2026-07-05T14:07:12 [ERROR] [deploy-staging] Rolling back deployment/payments to revision 41
+2026-07-05T14:07:20 [INFO ] [deploy-staging] Rollback complete
+2026-07-05T14:07:21 [ERROR] [deploy-staging] Pipeline exited with code 1

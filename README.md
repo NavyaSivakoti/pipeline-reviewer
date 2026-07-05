@@ -86,7 +86,7 @@ cp .env.example .env          # paste your free Gemini key (aistudio.google.com/
 > Free-tier note: ~5 req/min and ~20/day per model; the runner auto-retries 429/503.
 
 ## Evaluation Results
-`eval/run_eval.py` scores the agent against **8 labelled scenarios** on three axes:
+`eval/run_eval.py` scores the agent against **10 labelled scenarios** on three axes:
 **failure-type**, **security-flag**, and **fix-suggested** accuracy.
 
 | Scenario | Expected type | Security flag |
@@ -99,6 +99,8 @@ cp .env.example .env          # paste your free Gemini key (aistudio.google.com/
 | Docker build (missing build deps) | build | none |
 | Integration test (DB not ready) | test_failure | none |
 | Maven/Java dependency (typosquat) | dependency | flag |
+| Deploy readiness probe (rollback) | deploy | none |
+| Config drift (missing env var) | config | none |
 
 Run `python eval/run_eval.py` → writes `eval/results.md`. *(The free-tier daily cap
 means running the full sweep when quota is fresh; the scoring logic is unit-tested.)*
