@@ -23,17 +23,19 @@ One or more of: a CI/CD **log** (GitHub Actions / Jenkins / GitLab / plain), and
 - **Root cause**
 - **Suggested fix** (as a patch/diff where possible)
 - **Security / supply-chain flag** (e.g. typosquatted or outdated package)
+- **Recurrence** (has this failure been seen before?)
 - **Confidence** + **how to verify**
 
 ## 6. Architecture
-Single ADK + Gemini agent that loads a **review skill** and calls **tools**:
-`read_log`, `parse_junit_results`, `get_pr_changes`, `check_package`.
+Single ADK + Gemini agent that loads a **review skill** and calls **6 tools**:
+`read_log`, `parse_junit_results`, `fetch_github_actions_log`, `get_pr_changes`,
+`check_package`, `check_recurrence`.
 Wrapped in a **GitHub Action** for autonomy (runs on failure → comments on PR).
 
 ## 7. Scope
-**MVP (by Jul 6):** the review on logs + JUnit, runnable from the CLI and as a
-GitHub Action, with an evaluation harness.
-**Stretch:** MCP server (tools reusable in Cursor/Claude); failure memory/recurrence.
+**MVP (by Jul 6):** the review (incl. failure memory/recurrence) on logs + JUnit,
+runnable from the CLI and as a GitHub Action, with an evaluation harness.
+**Stretch:** MCP server (tools reusable in Cursor/Claude).
 **Out of scope:** a release GO/NO-GO decision (a single failure can't determine
 release readiness); auto-merging fixes.
 
