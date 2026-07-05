@@ -1,7 +1,7 @@
 """
 agent.py — the Pipeline Reviewer agent (single, focused ADK agent).
 
-It loads the review skill (Day 3) and calls the tools (Day 2) to review a
+It loads the review skill and calls the tools to review a
 failed pipeline: classify -> root cause -> fix -> security flag.
 """
 
@@ -16,7 +16,7 @@ MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 
 def load_skill(name: str) -> str:
-    """Load a packaged Agent Skill (Day 3) from skills/."""
+    """Load a packaged Agent Skill from skills/."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills", f"{name}.md")
     with open(path) as f:
         return f.read()

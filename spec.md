@@ -1,6 +1,6 @@
 # Spec — CI/CD Pipeline Reviewer Agent
 
-> Spec written first (Day 5: Spec-Driven Development). We build to this spec.
+> Spec written first (spec-driven development). We build to this spec.
 
 ## 1. Problem
 When a CI/CD pipeline fails, engineers spend 30–45 min reading logs to work out

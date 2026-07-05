@@ -29,7 +29,7 @@ comments the review on the commit/PR. No one pastes anything.
 - **Security guardrail:** secrets in logs are redacted before reaching the model.
 
 ## 4. How it works
-A single ADK agent loads a **review skill** (Day 3) and calls **6 tools** (Day 2):
+A single ADK agent loads a **review skill** and calls **6 tools**:
 `read_log` (any CI format), `parse_junit_results` (universal),
 `fetch_github_actions_log` (pulls a live run), `get_pr_changes` (PR diff),
 `check_package` (live PyPI/Maven), and `check_recurrence` (memory).

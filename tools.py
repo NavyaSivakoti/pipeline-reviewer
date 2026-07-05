@@ -1,5 +1,5 @@
 """
-tools.py — the agent's TOOLS (Day 2).
+tools.py — the agent's tools.
 
 Deterministic Python functions the agent calls. Parsing is exact work best done
 in code; the LLM does the reasoning. `check_package` reaches LIVE data
@@ -27,7 +27,7 @@ def _resolve(path: str) -> str:
 
 
 # --------------------------------------------------------------------------
-# Security guardrail (Day 4): redact secrets before any text reaches the model
+# Security guardrail: redact secrets before any text reaches the model
 # --------------------------------------------------------------------------
 _SECRET_PATTERNS = [
     re.compile(r"AIza[0-9A-Za-z\-_]{20,}"),
@@ -133,7 +133,7 @@ def parse_junit_results(file_path: str) -> dict:
 
 
 # --------------------------------------------------------------------------
-# Supply-chain check (Day 4): LIVE PyPI lookup + typosquat heuristic
+# Supply-chain check: LIVE PyPI lookup + typosquat heuristic
 # --------------------------------------------------------------------------
 # Popular PyPI (Python) package names — used to spot typosquats.
 _POPULAR = [
@@ -240,7 +240,7 @@ def _check_maven(package_name: str) -> dict:
 
 
 def check_package(package_name: str, ecosystem: str = "auto") -> dict:
-    """Check a dependency for supply-chain risk (Day 4 concept).
+    """Check a dependency for supply-chain risk.
 
     Does a LIVE lookup to see whether a package exists, its latest version, and
     whether it's a likely typosquat of a popular package. Supports two
@@ -261,7 +261,7 @@ def check_package(package_name: str, ecosystem: str = "auto") -> dict:
 
 
 # --------------------------------------------------------------------------
-# Memory / recurrence detection (Day 1 state) — persists across runs
+# Memory / recurrence detection — persists across runs
 # --------------------------------------------------------------------------
 def _avg_interval_str(occurrences: list) -> str:
     """Average time between occurrences (a real recurrence signal)."""

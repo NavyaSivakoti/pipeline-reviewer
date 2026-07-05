@@ -3,7 +3,7 @@ agent_runner.py — reusable harness with automatic retry/backoff.
 
 The free Gemini tier throws transient 429 (rate limit) and 503 (overloaded)
 errors, and can even return a blank or truncated review; we retry with backoff
-in both cases, and never post a mangled comment (Day 4 reliability).
+in both cases, and never post a mangled comment.
 """
 
 import asyncio
