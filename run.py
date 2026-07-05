@@ -4,11 +4,14 @@ run.py — review a pipeline failure.
 Usage:
     python run.py                                    # default sample
     python run.py sample_data/github_actions_failure.log
+    python run.py NavyaSivakoti/demo-app 28689439589 # a live GitHub Actions run
+    python run.py sample_data/failing_pipeline.log --json   # structured JSON only
 """
 
+import json
 import sys
 
-from agent_runner import run_agent, print_report
+from agent_runner import extract_json, run_agent, print_report
 
 DEFAULT = ["sample_data/failing_pipeline.log", "sample_data/junit_results.xml"]
 
@@ -17,16 +20,23 @@ def _show_tool_calls(event) -> None:
     try:
         for part in (event.content.parts or []):
             if getattr(part, "function_call", None):
-                print(f"   🔧 calling tool: {part.function_call.name}()")
+                print(f"   🔧 calling tool: {part.function_call.name}()", file=sys.stderr)
     except AttributeError:
         pass
 
 
 def main() -> None:
-    paths = sys.argv[1:] or DEFAULT
-    print("\n>>> Reviewing pipeline...\n")
+    args = sys.argv[1:]
+    as_json = "--json" in args
+    paths = [a for a in args if a != "--json"] or DEFAULT
+
+    print("\n>>> Reviewing pipeline...\n", file=sys.stderr)
     state = run_agent(paths, on_event=_show_tool_calls)
-    print_report(state)
+
+    if as_json:
+        print(json.dumps(extract_json(state.get("review", "")), indent=2))
+    else:
+        print_report(state)
 
 
 if __name__ == "__main__":
