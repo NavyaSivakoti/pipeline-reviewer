@@ -39,7 +39,7 @@ results) and it produces one review:
 - **Autonomy:** it runs *inside your pipeline* as a GitHub Action and comments automatically — no one pastes anything.
 - **Memory:** it remembers past failures and flags **recurrences** — a chatbot can't.
 - **Measured:** an evaluation harness scores it against labelled cases.
-- **Guarded:** secrets are redacted before any text reaches the model.
+- **Guarded:** secrets are redacted before any text reaches the model — *proven by `tests/test_redaction.py`*.
 
 ## Architecture
 ```
@@ -64,6 +64,7 @@ cp .env.example .env        # paste your free Gemini key (aistudio.google.com/ap
 .venv/bin/python run.py NavyaSivakoti/demo-app 28689439589  # a live GitHub Actions run (no file)
 .venv/bin/python run.py sample_data/failing_pipeline.log --json   # machine-readable JSON
 .venv/bin/python eval/run_eval.py                           # evaluation
+.venv/bin/pip install -r requirements-dev.txt && .venv/bin/pytest   # security tests (redaction)
 ```
 > Free-tier note: ~5 req/min and ~20/day per model; the runner auto-retries 429/503.
 
@@ -84,7 +85,8 @@ agent_runner.py  # harness with retry/backoff
 run.py           # CLI
 ci_review.py     # CI entry point (prints only the review, for the comment)
 eval/            # evaluation dataset + harness
-sample_data/     # sample logs (GitHub Actions, Jenkins, dependency, test, flaky, lint)
+sample_data/     # sample logs: dependency, test, flaky, lint, docker-build, integration-db, secrets
+tests/           # security tests proving secrets are redacted before model input
 ```
 
 ## Whitepaper concepts

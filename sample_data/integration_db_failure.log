@@ -1,0 +1,11 @@
+2026-07-02T08:30:00Z [INFO] Step: Start services (docker-compose up -d) ... OK
+2026-07-02T08:30:02Z [INFO] Step: Run unit tests (pytest -q -m "not integration") ... 128 passed in 6.3s ... OK
+2026-07-02T08:30:05Z [INFO] Step: Run integration tests (pytest -m integration) ...
+2026-07-02T08:30:35Z [ERROR] tests/integration/test_orders.py::test_create_order ERROR
+2026-07-02T08:30:35Z [ERROR] tests/integration/test_orders.py::test_list_orders ERROR
+2026-07-02T08:30:35Z [ERROR] E   sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) connection to server at "db" (172.18.0.2), port 5432 failed: Connection refused
+2026-07-02T08:30:35Z [ERROR] E   Is the server running on that host and accepting TCP/IP connections?
+2026-07-02T08:30:35Z [ERROR] ------- note: 2 errors during collection; the 'db' container had not finished starting (no healthcheck / wait-for-db before tests) -------
+2026-07-02T08:30:36Z [ERROR] 2 errors in 30.12s
+2026-07-02T08:30:36Z [ERROR] Step: Run integration tests (pytest -m integration) ... FAILED (exit code 1)
+2026-07-02T08:30:37Z [INFO] CI run finished: FAILURE

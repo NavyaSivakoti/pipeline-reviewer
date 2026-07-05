@@ -33,5 +33,19 @@
     "expected_type": "lint",
     "expected_owner": "team-platform",
     "expected_security": "none"
+  },
+  {
+    "id": "docker_build",
+    "artifacts": ["sample_data/docker_build_failure.log"],
+    "expected_type": "build",
+    "expected_owner": "team-platform",
+    "expected_security": "none"
+  },
+  {
+    "id": "integration_db",
+    "artifacts": ["sample_data/integration_db_failure.log"],
+    "expected_type": "test_failure",
+    "expected_owner": "team-platform",
+    "expected_security": "none"
   }
 ]

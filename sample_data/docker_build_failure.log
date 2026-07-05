@@ -1,0 +1,16 @@
+2026-07-01T10:00:01Z ##[group]Build and push Docker image
+2026-07-01T10:00:02Z Step 1/9 : FROM python:3.11-slim
+2026-07-01T10:00:03Z  ---> a1b2c3d4e5f6
+2026-07-01T10:00:03Z Step 2/9 : WORKDIR /app
+2026-07-01T10:00:04Z Step 3/9 : COPY requirements.txt .
+2026-07-01T10:00:05Z Step 4/9 : RUN pip install -r requirements.txt
+2026-07-01T10:00:20Z  Collecting psycopg2==2.9.9
+2026-07-01T10:00:22Z    Building wheel for psycopg2 (setup.py): started
+2026-07-01T10:00:25Z    ./psycopg/psycopgmodule.c:1: fatal error: 'libpq-fe.h' file not found
+2026-07-01T10:00:25Z    Error: pg_config executable not found. Please install libpq-dev / build tools.
+2026-07-01T10:00:25Z    error: command 'gcc' failed: No such file or directory
+2026-07-01T10:00:25Z ##[error]The command '/bin/sh -c pip install -r requirements.txt' returned a non-zero code: 1
+2026-07-01T10:00:26Z ##[error]Docker build failed at step 4/9.
+2026-07-01T10:00:26Z Step: Push image to registry ... SKIPPED (build failed)
+2026-07-01T10:00:26Z Step: Deploy to staging ... SKIPPED (build failed)
+2026-07-01T10:00:27Z CI run finished: FAILURE
