@@ -19,7 +19,7 @@ One or more of: a CI/CD **log** (GitHub Actions / Jenkins / GitLab / plain), and
 **JUnit/pytest** results.
 
 ## 5. Output — the review
-- **Failure type** (test · build · dependency · lint · flaky · unknown) + key evidence
+- **Failure type** (test · build · dependency · lint · deploy · config · infra · flaky · unknown) + key evidence
 - **Root cause**
 - **Suggested fix** (as a patch/diff where possible)
 - **Security / supply-chain flag** (e.g. typosquatted or outdated package)

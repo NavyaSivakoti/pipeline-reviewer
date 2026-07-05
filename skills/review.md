@@ -10,11 +10,22 @@ When a CI/CD pipeline has failed and you have log output and/or test results.
 
 ## 1. Failure type (pick exactly one)
 - **test_failure** — a test assertion failed or errored.
-- **build_error** — a compile / build / Docker step failed.
+- **build_error** — a compile / **image build** step failed (the build itself).
 - **dependency_failure** — a package failed to install or resolve.
 - **lint_error** — only the linter/formatter failed.
+- **deploy_failure** — a deploy / release / rollout step failed (readiness or liveness
+  probe, rollback, `kubectl apply`, image pull / `ImagePullBackOff`). The build may have
+  SUCCEEDED — the failure is in *shipping* it, not building it.
+- **config_error** — misconfiguration: a missing or invalid env var, secret, or manifest,
+  or config drift between environments.
+- **infra_error** — the environment/runner itself failed, not the code (OOM / "Killed",
+  disk full, network / DNS, an unready dependency service).
 - **flaky** — fails intermittently, passes on rerun (timeouts, "flaky", "quarantined").
 - **unknown** — evidence is insufficient.
+
+Do NOT label a **deploy / config / infra** failure as `build_error` just because it ran
+in a Docker or CI step — check *what actually failed*: the build, the release, or the
+environment.
 
 ## 2. Root cause
 One sentence, citing the specific error line. Never invent details.
