@@ -3,8 +3,8 @@
 This is a real comment the **AI Pipeline Reviewer** posted on a failing commit in
 the [demo-app](https://github.com/NavyaSivakoti/demo-app), with no human involved.
 
-- ▶️ Failed workflow run: <https://github.com/NavyaSivakoti/demo-app/actions/runs/28689439589>
-- 💬 The posted comment: <https://github.com/NavyaSivakoti/demo-app/commit/bc5816ff0d5d88efac0ccbe1904f2d1ee87bb2b8#commitcomment-191213335>
+- Failed workflow run: <https://github.com/NavyaSivakoti/demo-app/actions/runs/28689439589>
+- The posted comment: <https://github.com/NavyaSivakoti/demo-app/commit/bc5816ff0d5d88efac0ccbe1904f2d1ee87bb2b8#commitcomment-191213335>
 
 ---
 
