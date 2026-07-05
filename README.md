@@ -49,14 +49,14 @@ and reasons over tool output. `agent_runner.py` adds retry/backoff **and a
 completeness guard** (never posts a blank/truncated review) for the free tier.
 
 ## Tools Used
-| Tool | What it does | Why it's more than a chatbot |
+| Tool | What it does | What it enables |
 |------|--------------|------------------------------|
 | `read_log` | Reads any CI log (GitHub Actions/Jenkins/GitLab) | format-agnostic + redacts secrets |
 | `parse_junit_results` | Parses JUnit/pytest XML (universal) | exact, reliable parsing |
 | `fetch_github_actions_log` | Pulls a run's logs **directly from GitHub** | acts on live data — no file needed |
 | `get_pr_changes` | Inspects the **files changed in the PR** | tests whether the PR caused it — vs pre-existing/flaky |
-| `check_package` | **Live PyPI + Maven Central** lookup for typosquat/missing packages (Python & Java) | data a chatbot can't fetch |
-| `check_recurrence` | Remembers past failures, flags recurrences | **persistent memory** — a chatbot can't |
+| `check_package` | **Live PyPI + Maven Central** lookup for typosquat/missing packages (Python & Java) | fetches live registry data at review time |
+| `check_recurrence` | Remembers past failures, flags recurrences | **persistent memory** across runs |
 
 ## Demo
 **See it live** — the [demo-app](https://github.com/NavyaSivakoti/demo-app) has an
