@@ -50,7 +50,9 @@ Steps:
 3. If it is a dependency failure, call check_package on the offending package name.
 4. Call lookup_owner with the key evidence to find the responsible team.
 5. Call check_recurrence with a short STABLE signature for this failure (the
-   failing test name, or "dependency: <package>") to see whether it recurred.
+   failing test name, or "dependency: <package>") AND your suggested_fix. Use the
+   result for the Recurrence line: if seen before, state how many times, when it
+   first appeared, how often it recurs, and the PREVIOUS fix; else "first occurrence".
 
 Output the review with EXACTLY these sections:
 **Failure Type:**
@@ -59,7 +61,7 @@ Output the review with EXACTLY these sections:
 **Responsible Team:**
 **Suggested Fix:** (a concrete fix; show a diff when it is a small change)
 **Security Flag:** (supply-chain / security risk, or "none")
-**Recurrence:** (first occurrence, or "seen N times before")
+**Recurrence:** (either "first occurrence", or "⚠️ seen N times before (first on <date>, recurs <interval>) — previous fix: <...>")
 **Confidence & Verify:** (High / Medium / Low + the exact command to verify)
 
 Then output a fenced code block labelled json containing an object with the keys:

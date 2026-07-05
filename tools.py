@@ -189,16 +189,29 @@ def check_package(package_name: str) -> dict:
 # --------------------------------------------------------------------------
 # Memory / recurrence detection (Day 1 state) — persists across runs
 # --------------------------------------------------------------------------
-def check_recurrence(signature: str) -> dict:
-    """Record this failure and report how often it has happened before.
+def _avg_interval_str(occurrences: list) -> str:
+    """Average time between occurrences (a real recurrence signal)."""
+    if len(occurrences) < 2:
+        return ""
+    ts = [datetime.datetime.fromisoformat(t) for t in occurrences]
+    gaps = [(ts[i] - ts[i - 1]).total_seconds() for i in range(1, len(ts))]
+    avg = sum(gaps) / len(gaps)
+    if avg < 3600:
+        return f"~{avg / 60:.0f} min between occurrences"
+    if avg < 86400:
+        return f"~{avg / 3600:.1f} h between occurrences"
+    return f"~{avg / 86400:.1f} days between occurrences"
 
-    Pass a short, STABLE signature for the failure (e.g. the failing test name,
-    or "dependency: reqests"). Returns how many times it was seen before and
-    when, then records this occurrence. This is the agent's memory: a chatbot
+
+def check_recurrence(signature: str, suggested_fix: str = "") -> dict:
+    """Record this failure and report how often it has happened before, plus the
+    fix suggested LAST time. This is the agent's memory across runs — a chatbot
     can't remember your past pipeline failures.
 
     Args:
-        signature: a short stable identifier for this failure.
+        signature: a short STABLE identifier (failing test name, or
+            "dependency: <package>"). Must be the same each time the failure recurs.
+        suggested_fix: the fix you are proposing now (stored for next time).
     """
     os.makedirs(os.path.dirname(MEMORY_FILE), exist_ok=True)
     try:
@@ -208,10 +221,16 @@ def check_recurrence(signature: str) -> dict:
 
     key = re.sub(r"\s+", " ", signature.strip().lower())[:200]
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
-    entry = store.get(key, {"count": 0, "first_seen": now, "last_seen": now})
+    entry = store.get(key, {"count": 0, "first_seen": now, "occurrences": [], "last_fix": ""})
+
     times_before = entry["count"]
+    previous_fix = entry.get("last_fix", "")
+
     entry["count"] += 1
     entry["last_seen"] = now
+    entry.setdefault("occurrences", []).append(now)
+    if suggested_fix:
+        entry["last_fix"] = suggested_fix.strip()[:300]
     store[key] = entry
     json.dump(store, open(MEMORY_FILE, "w"), indent=2)
 
@@ -220,7 +239,9 @@ def check_recurrence(signature: str) -> dict:
         "times_seen_before": times_before,
         "is_recurring": times_before > 0,
         "first_seen": entry["first_seen"],
-        "last_seen": entry["last_seen"],
+        "last_seen": now,
+        "previous_fix": previous_fix or None,
+        "recurrence_interval": _avg_interval_str(entry["occurrences"]) or None,
     }
 
 
