@@ -49,10 +49,16 @@ def redact_secrets(text: str) -> str:
 # --------------------------------------------------------------------------
 # Generic log reader — works for ANY CI tool (GitHub Actions, Jenkins, GitLab)
 # --------------------------------------------------------------------------
+_ERROR_LINE = re.compile(r"error|fail|assert|traceback|exception", re.I)
+
+
 def read_log(file_path: str) -> dict:
     """Read any CI/CD or build/console log and return its redacted text.
 
-    Use for any non-XML log from any CI tool. Secrets are stripped first.
+    Use for any non-XML log from any CI tool. Secrets are stripped first. Long
+    logs are trimmed to the first 120 + last 80 lines, but any error/failure
+    lines from the omitted middle are ALSO surfaced, so a mid-log root cause is
+    never dropped just because of where it appears.
 
     Args:
         file_path: path to the log / console-output file.
@@ -67,8 +73,16 @@ def read_log(file_path: str) -> dict:
     lines = text.splitlines()
     total = len(lines)
     if total > 200:
-        omitted = total - 200
-        lines = lines[:120] + [f"... ({omitted} lines omitted) ..."] + lines[-80:]
+        head, tail, middle = lines[:120], lines[-80:], lines[120:total - 80]
+        errors = [ln for ln in middle if _ERROR_LINE.search(ln)]
+        if errors:
+            lines = (head
+                     + [f"... ({len(middle)} lines omitted; {len(errors)} error line(s) surfaced) ..."]
+                     + errors[:40]
+                     + ["..."]
+                     + tail)
+        else:
+            lines = head + [f"... ({len(middle)} lines omitted) ..."] + tail
     return {"artifact_type": "raw_log", "line_count": total, "log_text": "\n".join(lines)}
 
 
