@@ -18,12 +18,12 @@ a **security/supply-chain flag** · a **recurrence check** · confidence + how t
 Crucially, it **runs automatically as a GitHub Action** — on a failed pipeline it
 comments the review on the commit/PR. No one pastes anything.
 
-## 3. Why it's a real agent (not "just ChatGPT")
-- **Tools on data a chatbot can't reach:** a **live PyPI + Maven Central lookup**
+## 3. What makes it agentic
+- **Tools on live/private data:** a **live PyPI + Maven Central lookup**
   to flag typosquatted/missing packages (Python & Java), and **PR-diff inspection**
   to check whether the change actually caused the failure.
-- **Persistent memory:** it remembers past failures and flags **recurrences** —
-  state a chatbot can't hold.
+- **Persistent memory:** it remembers past failures and flags **recurrences**
+  across runs.
 - **Autonomy:** it lives *inside the pipeline* (GitHub Action) and acts on its own.
 - **Evaluated:** an eval harness scores it against labelled cases.
 - **Security guardrail:** secrets in logs are redacted before reaching the model.
