@@ -3,7 +3,7 @@ tools.py — the agent's TOOLS (Day 2).
 
 Deterministic Python functions the agent calls. Parsing is exact work best done
 in code; the LLM does the reasoning. `check_package` reaches LIVE data
-(PyPI + Maven Central) — something a chatbot can't do on its own.
+(PyPI + Maven Central) at review time.
 """
 
 import datetime
@@ -279,8 +279,8 @@ def _avg_interval_str(occurrences: list) -> str:
 
 def check_recurrence(signature: str, suggested_fix: str = "") -> dict:
     """Record this failure and report how often it has happened before, plus the
-    fix suggested LAST time. This is the agent's memory across runs — a chatbot
-    can't remember your past pipeline failures.
+    fix suggested LAST time. This is the agent's persistent memory across runs,
+    so a recurring failure is recognised.
 
     Args:
         signature: a short STABLE identifier (failing test name, or
