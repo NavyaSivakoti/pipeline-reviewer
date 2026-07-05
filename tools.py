@@ -6,15 +6,18 @@ in code; the LLM does the reasoning. `check_package` reaches LIVE data (PyPI) â€
 something a chatbot can't do on its own.
 """
 
+import datetime
 import json
 import os
 import re
+import subprocess
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 OWNERSHIP_FILE = os.path.join(BASE, "sample_data", "ownership_map.json")
+MEMORY_FILE = os.path.join(BASE, "memory", "failures.json")
 
 
 def _resolve(path: str) -> str:
@@ -181,3 +184,79 @@ def check_package(package_name: str) -> dict:
     else:
         result["supply_chain_risk"] = "low"
     return result
+
+
+# --------------------------------------------------------------------------
+# Memory / recurrence detection (Day 1 state) â€” persists across runs
+# --------------------------------------------------------------------------
+def check_recurrence(signature: str) -> dict:
+    """Record this failure and report how often it has happened before.
+
+    Pass a short, STABLE signature for the failure (e.g. the failing test name,
+    or "dependency: reqests"). Returns how many times it was seen before and
+    when, then records this occurrence. This is the agent's memory: a chatbot
+    can't remember your past pipeline failures.
+
+    Args:
+        signature: a short stable identifier for this failure.
+    """
+    os.makedirs(os.path.dirname(MEMORY_FILE), exist_ok=True)
+    try:
+        store = json.load(open(MEMORY_FILE))
+    except (FileNotFoundError, json.JSONDecodeError):
+        store = {}
+
+    key = re.sub(r"\s+", " ", signature.strip().lower())[:200]
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    entry = store.get(key, {"count": 0, "first_seen": now, "last_seen": now})
+    times_before = entry["count"]
+    entry["count"] += 1
+    entry["last_seen"] = now
+    store[key] = entry
+    json.dump(store, open(MEMORY_FILE, "w"), indent=2)
+
+    return {
+        "signature": key,
+        "times_seen_before": times_before,
+        "is_recurring": times_before > 0,
+        "first_seen": entry["first_seen"],
+        "last_seen": entry["last_seen"],
+    }
+
+
+# --------------------------------------------------------------------------
+# Fetch a run's logs DIRECTLY from GitHub Actions (no local file needed)
+# --------------------------------------------------------------------------
+def fetch_github_actions_log(repo: str, run_id: str) -> dict:
+    """Fetch a failed GitHub Actions run's logs directly, via the gh CLI.
+
+    Lets the agent review a run WITHOUT downloading a file first. Secrets are
+    redacted; output is trimmed to the error/failure lines.
+
+    Args:
+        repo: 'owner/repo' (e.g. 'NavyaSivakoti/demo-app').
+        run_id: the numeric run id.
+    """
+    try:
+        out = subprocess.run(
+            ["gh", "run", "view", str(run_id), "--repo", repo, "--log"],
+            capture_output=True, text=True, timeout=60,
+        )
+    except FileNotFoundError:
+        return {"error": "gh CLI not available in this environment"}
+    except subprocess.TimeoutExpired:
+        return {"error": "gh run view timed out"}
+    if out.returncode != 0:
+        return {"error": f"gh failed: {out.stderr[:200]}"}
+
+    text = redact_secrets(out.stdout)
+    lines = text.splitlines()
+    important = [ln for ln in lines if re.search(r"error|fail|assert|traceback|exception", ln, re.I)]
+    shown = important[:80] or lines[-80:]
+    return {
+        "artifact_type": "github_actions_log",
+        "repo": repo,
+        "run_id": str(run_id),
+        "line_count": len(lines),
+        "log_text": "\n".join(shown[:120]),
+    }

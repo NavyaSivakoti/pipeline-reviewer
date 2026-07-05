@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 .ipynb_checkpoints/
 eval/eval_output.txt
+memory/failures.json

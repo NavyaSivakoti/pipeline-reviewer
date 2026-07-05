@@ -6,6 +6,7 @@ errors; we retry with backoff instead of crashing (Day 4 reliability).
 """
 
 import asyncio
+import json
 import os
 import re
 import sys
@@ -80,6 +81,17 @@ def run_agent(paths: list[str], on_event=None, max_retries: int = 6) -> dict:
             else:
                 raise
     raise RuntimeError("exhausted retries")
+
+
+def extract_json(review: str) -> dict:
+    """Pull the machine-readable JSON block out of the review markdown."""
+    m = re.search(r"```json\s*(\{.*?\})\s*```", review or "", re.S)
+    if not m:
+        return {}
+    try:
+        return json.loads(m.group(1))
+    except json.JSONDecodeError:
+        return {}
 
 
 def print_report(state: dict) -> None:
