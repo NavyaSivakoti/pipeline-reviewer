@@ -3,8 +3,9 @@
 > Spec written first (spec-driven development). We build to this spec.
 
 ## 1. Problem
-When a CI/CD pipeline fails, engineers spend 30–45 min reading logs to work out
-*what failed, why, and how to fix it.* It's slow and inconsistent.
+When a CI/CD pipeline fails, an engineer reads the logs to work out *what failed,
+why, and how to fix it* — repetitive and inconsistent, and slow when the failure
+is unfamiliar.
 
 ## 2. Goal
 An AI agent that **reviews a failed pipeline** and returns a clear review —
