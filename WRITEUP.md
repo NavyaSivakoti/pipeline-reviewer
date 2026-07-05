@@ -13,7 +13,7 @@ When a CI/CD pipeline fails, engineers spend 30–45 min reading logs to work ou
 ## 2. What we built
 **An AI agent that reviews a failed pipeline** (Google ADK + Gemini) and produces:
 failure type · root cause · responsible team · a **suggested fix (as a diff)** ·
-a **security/supply-chain flag** · confidence + how to verify.
+a **security/supply-chain flag** · a **recurrence check** · confidence + how to verify.
 
 Crucially, it **runs automatically as a GitHub Action** — on a failed pipeline it
 comments the review on the commit/PR. No one pastes anything.
@@ -45,21 +45,21 @@ failing test. On push, CI fails and the agent auto-posts a review comment, e.g.:
 > `- "currency": "USD"` → `+ "currency": currency` · **Confidence:** High.
 
 ## 6. Evaluation
-`eval/run_eval.py` scores the agent on labelled CI failures for failure-type,
-owner-routing, security-flag, and fix-suggested accuracy. *(Fill the numbers from
-`eval/results.md` after a run; the free-tier daily cap means running the full
-sweep when quota is fresh.)*
+`eval/run_eval.py` scores the agent on **8 labelled scenarios** (incl. a Java/Maven
+case) for failure-type, owner-routing, security-flag, and fix-suggested accuracy.
+*(Fill the numbers from `eval/results.md` after a run; the free-tier daily cap
+means running the full sweep when quota is fresh.)*
 
 ## 7. Whitepaper concepts (all 5 days)
 - **Day 1** agent + context engineering + the Action as a harness
-- **Day 2** tools (incl. live PyPI) + GitHub interoperability
+- **Day 2** tools (incl. live PyPI + Maven Central) + GitHub interoperability
 - **Day 3** the review skill, loaded by the agent
 - **Day 4** security guardrail + supply-chain flag + evaluation
 - **Day 5** spec-driven development + human-in-the-loop (agent suggests, human applies)
 
 ## 8. Who built what
 - **Mohan (DevOps):** the agent, the tools, and the GitHub Action.
-- **Navya (AI build):** the evaluation harness and the security-flag logic.
+- **Navya (AI build):** the evaluation harness and the security/supply-chain logic + tests.
 
 ## 9. Limitations & future work
 - Root cause / fixes are best-effort LLM suggestions; a human applies them.
