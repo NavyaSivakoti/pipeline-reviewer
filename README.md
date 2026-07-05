@@ -143,5 +143,5 @@ diagnosed and fixed.
 | 5 | Spec-driven + human-in-the-loop | `spec.md` first; agent suggests, human applies |
 
 ### Team
-- **Mohan (DevOps):** the agent, tools, and GitHub Action.
-- **Navya (AI build):** the evaluation harness + the security-flag logic and tests.
+- **Mohan Vamshi Appana (DevOps):** the agent, tools, and GitHub Action.
+- **Lakshmi Navya Sivakoti (AI build):** the evaluation harness + the security-flag logic and tests.
