@@ -61,9 +61,9 @@ completeness guard** (never posts a blank/truncated review) for the free tier.
 ## Demo
 **See it live** — the [demo-app](https://github.com/NavyaSivakoti/demo-app) has an
 intentionally failing test, so CI goes red and the agent auto-reviews it:
-- **A pull request it reviewed:** <https://github.com/NavyaSivakoti/demo-app/pull/1> (comment posted on the PR)
-- **A commit it reviewed:** <https://github.com/NavyaSivakoti/demo-app/commit/bc5816ff0d5d88efac0ccbe1904f2d1ee87bb2b8#commitcomment-191213335>
-- **A failed run:** <https://github.com/NavyaSivakoti/demo-app/actions/runs/28689439589>
+- **A pull request it reviewed** — [demo-app#2](https://github.com/NavyaSivakoti/demo-app/pull/2): the agent read the PR diff (`get_pr_changes`), tied the failure to the **newly-added `app/auth.py`**, proposed the fix as a patch, and **@-mentioned the PR author** ([see the posted comment](https://github.com/NavyaSivakoti/demo-app/pull/2#issuecomment-4885142136))
+- **An earlier PR / commit it reviewed:** [demo-app#1](https://github.com/NavyaSivakoti/demo-app/pull/1) · [commit comment](https://github.com/NavyaSivakoti/demo-app/commit/bc5816ff0d5d88efac0ccbe1904f2d1ee87bb2b8#commitcomment-191213335)
+- **A failed run:** <https://github.com/NavyaSivakoti/demo-app/actions/runs/28732392827>
 - **The workflow (actions pinned to SHAs):** [demo-app/.github/workflows/ci.yml](https://github.com/NavyaSivakoti/demo-app/blob/main/.github/workflows/ci.yml)
 
 On a **pull request**, the workflow passes the PR to the reviewer (`ci_review.py --pr owner/repo#number`),
