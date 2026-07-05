@@ -16,6 +16,20 @@ def test_mid_log_error_is_surfaced(tmp_path):
     assert "database connection refused" in out["log_text"], "mid-log error was dropped"
 
 
+def test_java_and_native_errors_are_surfaced(tmp_path):
+    # Mid-log failures phrased WITHOUT a traditional error word must still be
+    # caught by the widened Python/Java keyword set.
+    lines = [f"processing item {i}" for i in range(1, 301)]
+    lines[150] = "Caused by: the connection pool was exhausted"   # Java root cause
+    lines[209] = "Killed"                                          # OOM kill
+    p = tmp_path / "big.log"
+    p.write_text("\n".join(lines))
+
+    out = tools.read_log(str(p))["log_text"]
+    assert "connection pool was exhausted" in out
+    assert "Killed" in out
+
+
 def test_short_log_is_not_truncated(tmp_path):
     p = tmp_path / "small.log"
     p.write_text("line one\nERROR here\nline three")

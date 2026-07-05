@@ -112,7 +112,7 @@ diagnosed and fixed.
   the model.**
 - **Proven by tests:** [`tests/test_redaction.py`](tests/test_redaction.py) verifies
   redaction on every model-input path (`redact_secrets`, `read_log`,
-  `parse_junit_results`). Run `pytest` — 13 tests pass (redaction, supply-chain, log handling).
+  `parse_junit_results`). Run `pytest` — 14 tests pass (redaction, supply-chain, log handling).
 - **Supply-chain awareness:** flags typosquatted / missing packages (Day-4 concept).
 - **Secrets stay out of git:** the API key lives in `.env` (git-ignored); in CI it's a
   GitHub Actions secret.
