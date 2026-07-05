@@ -46,5 +46,17 @@
     "artifacts": ["sample_data/maven_dependency_failure.log"],
     "expected_type": "dependency",
     "expected_security": "flag"
+  },
+  {
+    "id": "deploy_readiness",
+    "artifacts": ["sample_data/deploy_failure.log"],
+    "expected_type": "deploy",
+    "expected_security": "none"
+  },
+  {
+    "id": "config_missing_env",
+    "artifacts": ["sample_data/config_error.log"],
+    "expected_type": "config",
+    "expected_security": "none"
   }
 ]

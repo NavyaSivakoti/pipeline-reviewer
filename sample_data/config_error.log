@@ -1,0 +1,6 @@
+2026-07-05T15:10:02 [INFO ] [validate-config] Loading configuration for environment: staging
+2026-07-05T15:10:03 [INFO ] [validate-config] Checking 24 required settings
+2026-07-05T15:10:04 [ERROR] [validate-config] Missing required environment variable: DATABASE_URL
+2026-07-05T15:10:04 [ERROR] [validate-config] Missing required environment variable: REDIS_HOST
+2026-07-05T15:10:05 [ERROR] [validate-config] Config validation failed: 2 required settings not set in the staging environment (config drift vs config.example.yaml)
+2026-07-05T15:10:06 [ERROR] [validate-config] Pipeline exited with code 1
