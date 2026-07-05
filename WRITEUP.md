@@ -7,8 +7,9 @@
 ---
 
 ## 1. The problem
-When a CI/CD pipeline fails, engineers spend 30–45 min reading logs to work out
-*what broke, why, who owns it, and how to fix it.* It's slow and inconsistent.
+When a CI/CD pipeline fails, an engineer has to stop and read the logs to work out
+*what broke, why, and how to fix it* — a repetitive, inconsistent task that can take
+a couple of minutes or well over half an hour depending on the failure.
 
 ## 2. What we built
 **An AI agent that reviews a failed pipeline** (Google ADK + Gemini) and produces:

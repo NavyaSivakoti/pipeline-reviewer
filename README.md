@@ -11,9 +11,11 @@ Built for the **Kaggle × Google "AI Agents: Intensive Vibe Coding" capstone.**
 ---
 
 ## Problem
-When a CI/CD pipeline fails, engineers spend **30–45 minutes** reading build logs,
-test reports, and configs just to answer three questions: *what failed, why, and
-how do I fix it?* It's slow and inconsistent.
+When a CI/CD pipeline fails, an engineer has to stop and dig through build logs,
+test reports, and configs to answer three questions: *what failed, why, and how do
+I fix it?* Depending on the failure and how familiar they are with the code, that
+can take a couple of minutes or well over half an hour — and it's repetitive and
+inconsistent.
 
 ## Solution
 An AI agent that does that review in seconds and **comes to you**: on a failed
