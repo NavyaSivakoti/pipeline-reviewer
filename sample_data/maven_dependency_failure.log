@@ -1,0 +1,22 @@
+> Task :app:compileJava
+
+> Task :app:compileJava FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileJava'.
+> Could not resolve all files for configuration ':app:compileClasspath'.
+   > Could not find com.fasterxml.jackson.core:jackson-databin:2.15.2.
+     Searched in the following locations:
+       - https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databin/2.15.2/jackson-databin-2.15.2.pom
+     Required by:
+         project :app
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+
+BUILD FAILED in 11s
+1 actionable task: 1 executed
+Error: Process completed with exit code 1.
