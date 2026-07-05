@@ -4,7 +4,7 @@
 
 ## 1. Problem
 When a CI/CD pipeline fails, engineers spend 30–45 min reading logs to work out
-*what failed, why, who owns it, and how to fix it.* It's slow and inconsistent.
+*what failed, why, and how to fix it.* It's slow and inconsistent.
 
 ## 2. Goal
 An AI agent that **reviews a failed pipeline** and returns a clear review —
