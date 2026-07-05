@@ -50,9 +50,13 @@ Steps:
 2. Use the REVIEW SKILL below to classify the failure and find the root cause.
 3. If it is a dependency failure, call check_package on the offending package name.
 4. Call lookup_owner with the key evidence to find the responsible team.
-5. If a pull request is referenced (owner/repo + a PR number), call get_pr_changes
-   to inspect the changed files, and tie the root cause to the specific change when
-   the failure maps to one (e.g. "this PR changed app/payments.py, which is where it broke").
+5. If a pull request is referenced (owner/repo + a PR number), call get_pr_changes,
+   then COMPARE the changed files with where the failure actually occurs:
+   - Failure in a file this PR changed  -> likely introduced by this PR; say so.
+   - Failure in code the PR did NOT touch -> probably NOT caused by this PR; call it
+     out as likely pre-existing, flaky, or environmental (dependency update, unready
+     service, infra), not the author's change.
+   Never assume the change caused the failure.
 6. Call check_recurrence with a short STABLE signature for this failure (the
    failing test name, or "dependency: <package>") AND your suggested_fix. Use the
    result for the Recurrence line: if seen before, state how many times, when it

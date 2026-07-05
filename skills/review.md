@@ -18,6 +18,9 @@ When a CI/CD pipeline has failed and you have log output and/or test results.
 
 ## 2. Root cause
 One sentence, citing the specific error line. Never invent details.
+State whether the failure is in code that CHANGED (likely introduced by this
+change) or in UNCHANGED code (likely pre-existing, flaky, or environmental —
+e.g. a dependency update or an unready service). Do not assume the change caused it.
 
 ## 3. Suggested fix
 Give a concrete fix. When it's a small change, show it as a **patch/diff**:
