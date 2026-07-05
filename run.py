@@ -5,13 +5,11 @@ Usage:
     python run.py                                    # default sample
     python run.py sample_data/github_actions_failure.log
     python run.py NavyaSivakoti/demo-app 28689439589 # a live GitHub Actions run
-    python run.py sample_data/failing_pipeline.log --json   # structured JSON only
 """
 
-import json
 import sys
 
-from agent_runner import extract_json, run_agent, print_report
+from agent_runner import run_agent, print_report
 
 DEFAULT = ["sample_data/failing_pipeline.log", "sample_data/junit_results.xml"]
 
@@ -26,17 +24,10 @@ def _show_tool_calls(event) -> None:
 
 
 def main() -> None:
-    args = sys.argv[1:]
-    as_json = "--json" in args
-    paths = [a for a in args if a != "--json"] or DEFAULT
-
+    paths = sys.argv[1:] or DEFAULT
     print("\n>>> Reviewing pipeline...\n", file=sys.stderr)
     state = run_agent(paths, on_event=_show_tool_calls)
-
-    if as_json:
-        print(json.dumps(extract_json(state.get("review", "")), indent=2))
-    else:
-        print_report(state)
+    print_report(state)
 
 
 if __name__ == "__main__":
