@@ -2,7 +2,8 @@
 agent_runner.py — reusable harness with automatic retry/backoff.
 
 The free Gemini tier throws transient 429 (rate limit) and 503 (overloaded)
-errors; we retry with backoff instead of crashing (Day 4 reliability).
+errors, and can even return a blank or truncated review; we retry with backoff
+in both cases, and never post a mangled comment (Day 4 reliability).
 """
 
 import asyncio
@@ -25,6 +26,19 @@ from agent import root_agent
 APP = "pipeline_reviewer"
 USER = "local_user"
 _TRANSIENT = ("RESOURCE_EXHAUSTED", "UNAVAILABLE", "503", "429")
+
+# A complete review has its first (Failure Type) and last (Confidence) sections.
+# If either is missing, the free tier returned a blank or truncated response.
+_REQUIRED = ("Failure Type", "Confidence")
+_FALLBACK = (
+    "_The AI Pipeline Reviewer could not produce a complete review this run "
+    "(the free-tier model was rate-limited or returned an incomplete response). "
+    "Please re-run the job to try again._"
+)
+
+
+def _is_complete(review: str) -> bool:
+    return bool(review) and all(section in review for section in _REQUIRED)
 
 
 def build_message(paths: list[str], pr_ref: str | None = None) -> str:
@@ -79,7 +93,7 @@ def run_agent(paths: list[str], on_event=None, max_retries: int = 6, pr_ref: str
     loop = _ensure_loop()
     for attempt in range(1, max_retries + 1):
         try:
-            return loop.run_until_complete(_run_once(paths, on_event, pr_ref))
+            state = loop.run_until_complete(_run_once(paths, on_event, pr_ref))
         except Exception as err:  # noqa: BLE001
             if _is_transient(err) and attempt < max_retries:
                 wait = _retry_delay(err, delay)
@@ -87,8 +101,23 @@ def run_agent(paths: list[str], on_event=None, max_retries: int = 6, pr_ref: str
                 print(f"   {kind}; waiting {wait:.0f}s then retry ({attempt}/{max_retries})", file=sys.stderr)
                 time.sleep(wait)
                 delay = min(delay * 1.5, 65)
-            else:
-                raise
+                continue
+            raise
+
+        # The call succeeded, but the free tier can still return a blank or
+        # truncated review. Treat that like a transient error and retry.
+        if _is_complete(state.get("review", "")):
+            return state
+        if attempt < max_retries:
+            print(f"   review blank/incomplete; waiting {delay:.0f}s then retry ({attempt}/{max_retries})", file=sys.stderr)
+            time.sleep(delay)
+            delay = min(delay * 1.5, 65)
+            continue
+
+        # Still incomplete after every retry — post an honest placeholder,
+        # never a mangled half-review.
+        state["review"] = _FALLBACK
+        return state
     raise RuntimeError("exhausted retries")
 
 
