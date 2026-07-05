@@ -40,7 +40,7 @@ environmental instead.
                                                         │
                                                         ▼
                     review: type · root cause · owner · fix diff ·
-                    security flag · recurrence · confidence · JSON
+                    security flag · recurrence · confidence
                                                         │
                      printed locally  ──OR──  posted as a commit/PR comment
                                               by the GitHub Action (autonomy)
@@ -82,7 +82,6 @@ cp .env.example .env          # paste your free Gemini key (aistudio.google.com/
 .venv/bin/python run.py sample_data/docker_build_failure.log
 .venv/bin/python run.py sample_data/maven_dependency_failure.log        # a Java/Maven failure
 .venv/bin/python run.py NavyaSivakoti/demo-app 28689439589  # a live GitHub run (no file)
-.venv/bin/python run.py sample_data/failing_pipeline.log --json   # machine-readable JSON
 ```
 > Free-tier note: ~5 req/min and ~20/day per model; the runner auto-retries 429/503.
 

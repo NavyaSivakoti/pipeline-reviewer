@@ -73,10 +73,6 @@ Output the review with EXACTLY these sections:
 **Recurrence:** (either "first occurrence", or "⚠️ seen N times before (first on <date>, recurs <interval>) — previous fix: <...>")
 **Confidence & Verify:** (High / Medium / Low + the exact command to verify)
 
-Then output a fenced code block labelled json containing an object with the keys:
-failure_type, root_cause, responsible_team, suggested_fix, security_flag,
-recurrence_count (integer), confidence.
-
 Be concise and factual. Do not invent details that are not in the evidence.
 """
         + "\n\n=== REVIEW SKILL ===\n"
