@@ -20,7 +20,8 @@ the wrong person.
 An AI agent that does that review in seconds and **comes to you**: on a failed
 pipeline it runs inside GitHub Actions and posts a review comment with the root
 cause and a **suggested fix diff** — no one has to paste anything. It also flags
-**supply-chain risks** (via a live PyPI check), remembers **recurring** failures,
+**supply-chain risks** (via a live PyPI **and Maven Central** check — Python & Java
+deps), remembers **recurring** failures,
 and is backed by an **evaluation harness** and **security tests**. When a PR is
 involved it checks the changed files and is careful **not to blame the PR for
 failures in code it didn't touch** — flagging those as pre-existing, flaky, or
@@ -35,7 +36,7 @@ environmental instead.
                                        └──────────────┬──────────────┘
      tools ───────────────────────────────────────────┤
      read_log · parse_junit_results · fetch_github_actions_log · get_pr_changes
-     lookup_owner · check_package (live PyPI) · check_recurrence
+     lookup_owner · check_package (live PyPI/Maven) · check_recurrence
                                                         │
                                                         ▼
                     review: type · root cause · owner · fix diff ·
@@ -55,7 +56,7 @@ and reasons over tool output. `agent_runner.py` adds retry/backoff for the free 
 | `fetch_github_actions_log` | Pulls a run's logs **directly from GitHub** | acts on live data — no file needed |
 | `get_pr_changes` | Inspects the **files changed in the PR** | tests whether the PR caused it — vs pre-existing/flaky |
 | `lookup_owner` | Routes to the responsible team | uses your **private** ownership map |
-| `check_package` | **Live PyPI** lookup for typosquat/missing packages | data a chatbot can't fetch |
+| `check_package` | **Live PyPI + Maven Central** lookup for typosquat/missing packages (Python & Java) | data a chatbot can't fetch |
 | `check_recurrence` | Remembers past failures, flags recurrences | **persistent memory** — a chatbot can't |
 
 ## Demo
@@ -79,6 +80,7 @@ cp .env.example .env          # paste your free Gemini key (aistudio.google.com/
 
 .venv/bin/python run.py                                     # default sample
 .venv/bin/python run.py sample_data/docker_build_failure.log
+.venv/bin/python run.py sample_data/maven_dependency_failure.log        # a Java/Maven failure
 .venv/bin/python run.py NavyaSivakoti/demo-app 28689439589  # a live GitHub run (no file)
 .venv/bin/python run.py sample_data/failing_pipeline.log --json   # machine-readable JSON
 ```
@@ -135,7 +137,7 @@ diagnosed and fixed.
 | Day | Concept | Where |
 |-----|---------|-------|
 | 1 | Agent + context engineering + harness + **memory** | clean parsed evidence; the Action is the harness; `check_recurrence` |
-| 2 | Tools + interoperability | 7 tools incl. live PyPI; GitHub PR/run integration |
+| 2 | Tools + interoperability | 7 tools incl. live PyPI + Maven Central; GitHub PR/run integration |
 | 3 | Agent Skills | `skills/review.md`, loaded by the agent |
 | 4 | Security + evaluation | redaction (tested) + supply-chain flag + `eval/` |
 | 5 | Spec-driven + human-in-the-loop | `spec.md` first; agent suggests, human applies |

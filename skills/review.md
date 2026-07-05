@@ -30,8 +30,11 @@ Give a concrete fix. When it's a small change, show it as a **patch/diff**:
 ```
 
 ## 4. Security / supply-chain
-For a dependency failure, call `check_package` on the package name. If it is a
-typosquat or missing from PyPI, add a clear **⚠️ supply-chain risk** warning.
+For a dependency failure, call `check_package` on the package name. It covers
+both **Python (PyPI)** and **Java (Maven Central)** — pass the name as written
+(e.g. `reqests==2.31.0` or `com.google.guava:guava`); the ecosystem is
+auto-detected. If it is a typosquat or missing from the registry, add a clear
+**⚠️ supply-chain risk** warning.
 
 ## 5. Owner
 Call `lookup_owner` with the key evidence (file paths, package names, error) to

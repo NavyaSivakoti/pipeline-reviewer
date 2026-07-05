@@ -48,7 +48,8 @@ Steps:
    - For a GitHub Actions run reference call fetch_github_actions_log.
    - For any other log file call read_log.
 2. Use the REVIEW SKILL below to classify the failure and find the root cause.
-3. If it is a dependency failure, call check_package on the offending package name.
+3. If it is a dependency failure, call check_package on the offending package name
+   (works for both Python/PyPI names and Java/Maven coordinates like group:artifact).
 4. Call lookup_owner with the key evidence to find the responsible team.
 5. If a pull request is referenced (owner/repo + a PR number), call get_pr_changes,
    then COMPARE the changed files with where the failure actually occurs:

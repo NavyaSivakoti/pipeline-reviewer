@@ -19,9 +19,10 @@ Crucially, it **runs automatically as a GitHub Action** — on a failed pipeline
 comments the review on the commit/PR. No one pastes anything.
 
 ## 3. Why it's a real agent (not "just ChatGPT")
-- **Tools on data a chatbot can't reach:** a **live PyPI lookup** to flag
-  typosquatted/missing packages, a private **ownership map** for routing, and
-  **PR-diff inspection** to check whether the change actually caused the failure.
+- **Tools on data a chatbot can't reach:** a **live PyPI + Maven Central lookup**
+  to flag typosquatted/missing packages (Python & Java), a private **ownership
+  map** for routing, and **PR-diff inspection** to check whether the change
+  actually caused the failure.
 - **Persistent memory:** it remembers past failures and flags **recurrences** —
   state a chatbot can't hold.
 - **Autonomy:** it lives *inside the pipeline* (GitHub Action) and acts on its own.
@@ -32,7 +33,7 @@ comments the review on the commit/PR. No one pastes anything.
 A single ADK agent loads a **review skill** (Day 3) and calls **7 tools** (Day 2):
 `read_log` (any CI format), `parse_junit_results` (universal),
 `fetch_github_actions_log` (pulls a live run), `get_pr_changes` (PR diff),
-`lookup_owner`, `check_package` (live PyPI), and `check_recurrence` (memory).
+`lookup_owner`, `check_package` (live PyPI/Maven), and `check_recurrence` (memory).
 A retry/backoff harness handles free-tier 429/503.
 
 ## 5. Live demo (it really runs)

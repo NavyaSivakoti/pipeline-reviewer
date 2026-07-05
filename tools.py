@@ -2,8 +2,8 @@
 tools.py — the agent's TOOLS (Day 2).
 
 Deterministic Python functions the agent calls. Parsing is exact work best done
-in code; the LLM does the reasoning. `check_package` reaches LIVE data (PyPI) —
-something a chatbot can't do on its own.
+in code; the LLM does the reasoning. `check_package` reaches LIVE data
+(PyPI + Maven Central) — something a chatbot can't do on its own.
 """
 
 import datetime
@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
@@ -133,10 +134,19 @@ def lookup_owner(context_text: str) -> dict:
 # --------------------------------------------------------------------------
 # Supply-chain check (Day 4): LIVE PyPI lookup + typosquat heuristic
 # --------------------------------------------------------------------------
+# Popular PyPI (Python) package names — used to spot typosquats.
 _POPULAR = [
     "requests", "flask", "django", "numpy", "pandas", "pytest", "boto3",
     "urllib3", "pyyaml", "fastapi", "sqlalchemy", "click", "jinja2", "werkzeug",
     "pillow", "scipy", "setuptools", "cryptography", "certifi",
+]
+
+# Popular Maven Central (Java) artifactIds — used to spot typosquats of Java deps.
+_POPULAR_MAVEN = [
+    "jackson-databind", "guava", "junit", "junit-jupiter", "slf4j-api",
+    "log4j-core", "logback-classic", "commons-lang3", "commons-io", "gson",
+    "spring-core", "spring-context", "spring-boot", "mockito-core", "okhttp",
+    "netty-all", "hibernate-core", "snakeyaml",
 ]
 
 
@@ -150,40 +160,103 @@ def _edit_distance(a: str, b: str) -> int:
     return prev[-1]
 
 
-def check_package(package_name: str) -> dict:
-    """Check a package for supply-chain risk (Day 4 concept).
+def _typosquat_of(name: str, popular: list) -> list:
+    """Popular package names that are exactly one edit away from `name`."""
+    return [p for p in popular if p != name and _edit_distance(name, p) == 1]
 
-    Does a LIVE lookup on PyPI: does the package exist, what's the latest
-    version, and is it a likely typosquat of a popular package? Use this on a
-    dependency failure to flag typo'd or malicious package names.
 
-    Args:
-        package_name: the package name from the failing dependency step.
+def _detect_ecosystem(package_name: str) -> str:
+    """Guess the dependency ecosystem from how the name is written.
+
+    Maven coordinates look like 'groupId:artifactId[:version]' (a colon) or use a
+    reverse-domain group id like 'com.google.guava'. Everything else -> PyPI.
     """
-    name = re.split(r"[=<>!~ ]", package_name.strip())[0].lower()
-    result = {"package": name}
-    try:
-        with urllib.request.urlopen(f"https://pypi.org/pypi/{name}/json", timeout=6) as r:
-            data = json.load(r)
-            result["exists_on_pypi"] = True
-            result["latest_version"] = data["info"]["version"]
-    except urllib.error.HTTPError as e:
-        result["exists_on_pypi"] = False if e.code == 404 else None
-        if e.code != 404:
-            result["lookup_error"] = f"HTTP {e.code}"
-    except Exception as e:  # network off / timeout — degrade gracefully
-        result["exists_on_pypi"] = None
-        result["lookup_error"] = str(e)[:80]
+    n = package_name.strip()
+    if ":" in n:
+        return "maven"
+    if "==" not in n and re.match(r"^[a-z]+(\.[a-z0-9_]+){2,}$", n.lower()):
+        return "maven"
+    return "pypi"
 
-    close = [p for p in _POPULAR if p != name and _edit_distance(name, p) == 1]
+
+def _grade_supply_chain(result: dict, name: str, popular: list) -> None:
+    """Set possible_typosquat_of + supply_chain_risk on `result`, in place."""
+    close = _typosquat_of(name, popular)
     if close:
         result["possible_typosquat_of"] = close
-        result["supply_chain_risk"] = "high" if result.get("exists_on_pypi") is False else "medium"
-    elif result.get("exists_on_pypi") is False:
+        result["supply_chain_risk"] = "high" if result.get("exists") is False else "medium"
+    elif result.get("exists") is False:
         result["supply_chain_risk"] = "medium"
     else:
         result["supply_chain_risk"] = "low"
+
+
+def _check_pypi(package_name: str) -> dict:
+    name = re.split(r"[=<>!~ ]", package_name.strip())[0].lower()
+    result = {"package": name, "ecosystem": "pypi"}
+    try:
+        with urllib.request.urlopen(f"https://pypi.org/pypi/{name}/json", timeout=6) as r:
+            data = json.load(r)
+            result["exists"] = True
+            result["latest_version"] = data["info"]["version"]
+    except urllib.error.HTTPError as e:
+        result["exists"] = False if e.code == 404 else None
+        if e.code != 404:
+            result["lookup_error"] = f"HTTP {e.code}"
+    except Exception as e:  # network off / timeout — degrade gracefully
+        result["exists"] = None
+        result["lookup_error"] = str(e)[:80]
+    result["exists_on_pypi"] = result["exists"]  # backward-compatible key
+    _grade_supply_chain(result, name, _POPULAR)
     return result
+
+
+def _check_maven(package_name: str) -> dict:
+    """Live lookup on Maven Central for a Java/Maven dependency."""
+    raw = package_name.strip()
+    parts = raw.split(":")
+    group = parts[0] if len(parts) >= 2 else ""
+    artifact = (parts[1] if len(parts) >= 2 else parts[0]).lower()
+    result = {"package": raw, "ecosystem": "maven", "artifact": artifact}
+    query = f'g:"{group}" AND a:"{artifact}"' if group else f'a:"{artifact}"'
+    url = "https://search.maven.org/solrsearch/select?" + urllib.parse.urlencode(
+        {"q": query, "rows": "1", "wt": "json"}
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "pipeline-reviewer"})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            resp = json.load(r).get("response", {})
+            result["exists"] = resp.get("numFound", 0) > 0
+            if result["exists"]:
+                doc = resp["docs"][0]
+                result["latest_version"] = doc.get("latestVersion") or doc.get("v")
+    except Exception as e:  # network off / timeout — degrade gracefully
+        result["exists"] = None
+        result["lookup_error"] = str(e)[:80]
+    result["exists_on_maven"] = result["exists"]
+    _grade_supply_chain(result, artifact, _POPULAR_MAVEN)
+    return result
+
+
+def check_package(package_name: str, ecosystem: str = "auto") -> dict:
+    """Check a dependency for supply-chain risk (Day 4 concept).
+
+    Does a LIVE lookup to see whether a package exists, its latest version, and
+    whether it's a likely typosquat of a popular package. Supports two
+    ecosystems:
+      - **PyPI** (Python) — e.g. "requests", "reqests==2.31.0"
+      - **Maven Central** (Java) — e.g. "com.google.guava:guava" or
+        "org.apache.logging.log4j:log4j-core:2.14.1"
+
+    The ecosystem is auto-detected from the name (a Maven coordinate has a ':' or
+    a reverse-domain group id). Pass ecosystem="pypi" or "maven" to force it.
+
+    Args:
+        package_name: the dependency name from the failing step.
+        ecosystem: "auto" (default), "pypi", or "maven".
+    """
+    eco = ecosystem if ecosystem in ("pypi", "maven") else _detect_ecosystem(package_name)
+    return _check_maven(package_name) if eco == "maven" else _check_pypi(package_name)
 
 
 # --------------------------------------------------------------------------
