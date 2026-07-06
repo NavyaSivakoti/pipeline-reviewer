@@ -1,9 +1,6 @@
 # CI/CD Pipeline Reviewer Agent
 ### Kaggle × Google — AI Agents: Intensive Vibe Coding — Capstone Writeup
 
-> Paste into the Kaggle writeup. Fill the video link at the bottom; the repo
-> links are already correct.
-
 ---
 
 ## 1. The problem

@@ -54,5 +54,5 @@ release readiness); auto-merging fixes.
 - Day 5: this spec (SDD) + human-in-the-loop (human applies the fix)
 
 ## 10. Team
-- **Mohan (DevOps):** agent, tools, GitHub Action, demo-app
-- **Navya (AI build):** evaluation harness + the security-flag skill
+- **Mohan Vamshi Appana (DevOps):** agent, tools, GitHub Action, demo-app
+- **Lakshmi Navya Sivakoti (AI build):** evaluation harness + the security-flag skill
