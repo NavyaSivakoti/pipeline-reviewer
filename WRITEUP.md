@@ -53,15 +53,13 @@ means running the full sweep when quota is fresh.)*
 - **Day 5** spec-driven development + human-in-the-loop (agent suggests, human applies)
 
 ## 8. Who built what
-- **Mohan (DevOps):** the agent, the tools, and the GitHub Action.
-- **Navya (AI build):** the evaluation harness and the security/supply-chain logic + tests.
+- **Mohan Vamshi Appana (DevOps):** the agent, the tools, and the GitHub Action.
+- **Lakshmi Navya Sivakoti (AI build):** the evaluation harness and the security/supply-chain logic + tests.
 
 ## 9. Limitations & future work
 - Root cause / fixes are best-effort LLM suggestions; a human applies them.
 - Out of scope: release GO/NO-GO (a single failure can't determine release readiness).
 - Next: persist recurrence memory across CI runs, an MCP server (tools usable from Cursor/Claude).
-
----
 
 **Code (agent):** https://github.com/NavyaSivakoti/pipeline-reviewer
 **Code (demo):** https://github.com/NavyaSivakoti/demo-app
