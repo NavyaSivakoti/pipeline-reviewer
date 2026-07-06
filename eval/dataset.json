@@ -3,60 +3,88 @@
     "id": "gha_dependency",
     "artifacts": ["sample_data/github_actions_failure.log"],
     "expected_type": "dependency",
-    "expected_security": "flag"
+    "expected_security": "flag",
+    "reference_root_cause": "requirements.txt lists a misspelled package `reqests==2.31.0` (should be `requests`); pip cannot find it on PyPI, so the install step fails with 'No matching distribution found'.",
+    "reference_fix": "Correct the typo in requirements.txt from `reqests` to `requests`."
   },
   {
     "id": "payments_test",
     "artifacts": ["sample_data/failing_pipeline.log", "sample_data/junit_results.xml"],
     "expected_type": "test_failure",
-    "expected_security": "none"
+    "expected_security": "none",
+    "reference_root_cause": "test_checkout fails because create_charge calls payment_gateway.charge(amount, currency), but the mocked gateway (v1.2) does not support the 'currency' field and raises GatewayError 500.",
+    "reference_fix": "Update the payment_gateway mock/gateway to accept the 'currency' field, or change create_charge to match the gateway's supported signature."
   },
   {
     "id": "jenkins_auth",
     "artifacts": ["sample_data/jenkins_failure.log"],
     "expected_type": "test_failure",
-    "expected_security": "none"
+    "expected_security": "none",
+    "reference_root_cause": "testLoginWithValidToken expected HTTP 200 but got 401 - the auth token was rejected, so login with a supposedly valid token fails (LoginTest.java:58).",
+    "reference_fix": "Fix the token validation / auth handling so a valid token returns 200."
   },
   {
     "id": "flaky_test",
     "artifacts": ["sample_data/flaky_test.log"],
     "expected_type": "flaky",
-    "expected_security": "none"
+    "expected_security": "none",
+    "reference_root_cause": "test_search_returns_results times out connecting to search-service after 5s; it is a known flaky test that fails intermittently and passes on rerun (timing/environmental, not a code defect).",
+    "reference_fix": "Treat it as flaky - add a retry/rerun or raise the timeout, and/or quarantine it; do not treat it as a real regression."
   },
   {
     "id": "lint_only",
     "artifacts": ["sample_data/lint_failure.log"],
     "expected_type": "lint",
-    "expected_security": "none"
+    "expected_security": "none",
+    "reference_root_cause": "ruff failed on app/utils.py with F401 (unused import 'os', line 12) and E501 (line 40 too long, 92 > 88).",
+    "reference_fix": "Remove the unused `import os` and wrap/shorten line 40 to <= 88 characters."
   },
   {
     "id": "docker_build",
     "artifacts": ["sample_data/docker_build_failure.log"],
     "expected_type": "build",
-    "expected_security": "none"
+    "expected_security": "none",
+    "reference_root_cause": "The Docker build fails building the psycopg2 wheel because libpq/pg_config and a C compiler (gcc) are missing in the python:3.11-slim image (fatal error: 'libpq-fe.h' file not found).",
+    "reference_fix": "Install build deps before pip install (e.g. `apt-get install -y libpq-dev gcc`), or use the prebuilt `psycopg2-binary` package."
   },
   {
     "id": "integration_db",
     "artifacts": ["sample_data/integration_db_failure.log"],
     "expected_type": "test_failure",
-    "expected_security": "none"
+    "expected_security": "none",
+    "reference_root_cause": "Integration tests error with OperationalError: connection to 'db':5432 refused - the Postgres container had not finished starting; there is no healthcheck / wait-for-db before the tests run.",
+    "reference_fix": "Add a healthcheck or wait-for-db step (e.g. wait on port 5432 / `pg_isready`) before running the integration tests."
   },
   {
     "id": "maven_dependency",
     "artifacts": ["sample_data/maven_dependency_failure.log"],
     "expected_type": "dependency",
-    "expected_security": "flag"
+    "expected_security": "flag",
+    "reference_root_cause": "Gradle cannot resolve com.fasterxml.jackson.core:jackson-databin:2.15.2 - the artifact id is misspelled (should be `jackson-databind`), so it is not found on Maven Central.",
+    "reference_fix": "Correct the artifact id from `jackson-databin` to `jackson-databind`."
   },
   {
     "id": "deploy_readiness",
     "artifacts": ["sample_data/deploy_failure.log"],
     "expected_type": "deploy",
-    "expected_security": "none"
+    "expected_security": "none",
+    "reference_root_cause": "The image built and pushed fine, but the staging rollout failed: both pods' readiness probe (GET /healthz) returned 503 and never passed within 180s, so the deployment was rolled back. The failure is in shipping/health, not building.",
+    "reference_fix": "Investigate why /healthz returns 503 in staging (app not becoming ready - missing config/dependency or slow startup); fix the app health/startup, or raise the readiness probe initialDelaySeconds / failureThreshold if it just needs more time."
   },
   {
     "id": "config_missing_env",
     "artifacts": ["sample_data/config_error.log"],
     "expected_type": "config",
-    "expected_security": "none"
+    "expected_security": "none",
+    "reference_root_cause": "Config validation failed for staging because two required environment variables, DATABASE_URL and REDIS_HOST, are not set (config drift vs config.example.yaml).",
+    "reference_fix": "Set the missing DATABASE_URL and REDIS_HOST environment variables/secrets for the staging environment, reconciled against config.example.yaml."
+  },
+  {
+    "id": "ambiguous_unknown",
+    "artifacts": ["sample_data/ambiguous_unknown.log"],
+    "expected_type": "unknown",
+    "expected_security": "none",
+    "reference_root_cause": "Evidence is insufficient: the pipeline exited with code 1 but the log shows no error, traceback, failing test, or failing command output, so a specific root cause cannot be determined from this log alone.",
+    "reference_fix": "Re-run the failing step with verbose logging (or capture the build script's stderr/exit detail) to surface the actual error before diagnosing; do not guess a cause."
   }
 ]
