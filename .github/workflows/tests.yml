@@ -1,0 +1,22 @@
+name: tests
+
+# Runs the FREE, deterministic tests on every push/PR (unit + orchestration +
+# trajectory). The live smoke test and the paid eval are excluded here - they
+# need API keys/quota and are run manually.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run tests (exclude live) with coverage
+        run: pytest -q -m "not live" --cov=tools --cov-report=term-missing
