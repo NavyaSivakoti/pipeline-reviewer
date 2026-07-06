@@ -1,8 +1,6 @@
 # CI/CD Pipeline Reviewer Agent
 ### Kaggle × Google — AI Agents: Intensive Vibe Coding — Capstone Writeup
 
----
-
 ## 1. The problem
 When a CI/CD pipeline fails, an engineer has to stop and read the logs to work out
 *what broke, why, and how to fix it* — a repetitive, inconsistent task that can take
