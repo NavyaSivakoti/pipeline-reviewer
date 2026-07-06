@@ -61,6 +61,6 @@ means running the full sweep when quota is fresh.)*
 - Out of scope: release GO/NO-GO (a single failure can't determine release readiness).
 - Next: persist recurrence memory across CI runs, an MCP server (tools usable from Cursor/Claude).
 
-**Code (agent):** https://github.com/NavyaSivakoti/pipeline-reviewer
-**Code (demo):** https://github.com/NavyaSivakoti/demo-app
+**Code (pipeline-reviewer-agent):** https://github.com/NavyaSivakoti/pipeline-reviewer
+**Code (demo-app):** https://github.com/NavyaSivakoti/demo-app 
 **Video:** <your 3–5 min demo video URL>
