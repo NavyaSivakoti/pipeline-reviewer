@@ -6,3 +6,5 @@ __pycache__/
 .ipynb_checkpoints/
 eval/eval_output.txt
 memory/failures.json
+eval/reviews/
+eval/eval_memory.json
