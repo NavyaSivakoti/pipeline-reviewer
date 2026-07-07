@@ -17,8 +17,8 @@ Each field is scored 0/1/2 with a one-line justification:
 
 The judge is a SEPARATE model from the agent under test (the agent is Gemini;
 the judge is Claude), so a model never grades its own work. We force a tool
-call so the output is always valid structured JSON, and use temperature=0 so a
-given (review, reference) pair grades the same way twice.
+call so the output is always valid structured JSON; that plus a clear rubric
+keeps grades stable across runs.
 
 Requires:  pip install anthropic   and   ANTHROPIC_API_KEY in the environment
 (or in the project .env - loaded below).
@@ -41,7 +41,7 @@ load_dotenv(os.path.join(ROOT, ".env"))
 
 from run_eval import extract_field  # reuse the section extractor
 
-JUDGE_MODEL = "claude-haiku-4-5"
+JUDGE_MODEL = "claude-sonnet-5"
 DATASET = os.path.join(HERE, "dataset.json")
 REVIEWS_DIR = os.path.join(HERE, "reviews")
 JUDGE_MD = os.path.join(HERE, "judge_results.md")
@@ -108,7 +108,8 @@ def judge_case(review: str, case: dict, client=None, model: str = JUDGE_MODEL) -
         resp = client.messages.create(
             model=model,
             max_tokens=1024,
-            temperature=0,
+            # No `temperature`: it's rejected on Sonnet 5 / Opus 4.7+. The forced
+            # tool call + a clear rubric keep grades stable without it.
             system=SYSTEM,
             tools=[GRADE_TOOL],
             tool_choice={"type": "tool", "name": "submit_grade"},
@@ -166,7 +167,7 @@ def write_report(rows: list) -> None:
     fx = sum(r["fix_score"] for r in ok)
 
     with open(JUDGE_MD, "w") as f:
-        f.write("# LLM-as-judge results (Claude Haiku)\n\n")
+        f.write(f"# LLM-as-judge results ({JUDGE_MODEL})\n\n")
         f.write(f"_Model: {JUDGE_MODEL}. Scored {m} cached reviews._\n\n")
         if m:
             f.write(f"- Root-cause correctness: {rc}/{2 * m}\n")
