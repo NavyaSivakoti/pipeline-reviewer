@@ -72,10 +72,32 @@ JUDGE_THRESHOLDS = {
 
 
 def extract_field(text: str, label: str) -> str:
-    for line in (text or "").splitlines():
+    """Pull a section's value out of the review.
+
+    Models format sections two ways, and we must handle both:
+      same line   ->  **Failure Type:** dependency_failure
+      next line   ->  **Failure Type:**
+                      dependency_failure
+    """
+    lines = (text or "").splitlines()
+    for i, line in enumerate(lines):
         clean = line.strip().lstrip("*# ").strip()
         if clean.lower().startswith(label.lower()):
-            return clean.split(":", 1)[1].strip().strip("*").strip() if ":" in clean else ""
+            if ":" in clean:
+                after = clean.split(":", 1)[1].strip().strip("*").strip()
+                if after:
+                    return after
+            # value is on the following line(s): take the first non-empty line
+            # that isn't the next section header.
+            for nxt in lines[i + 1:]:
+                s = nxt.strip()
+                if not s:
+                    continue
+                s2 = s.lstrip("*#- ").strip()
+                if any(s2.lower().startswith(h.lower()) for h in REQUIRED_SECTIONS):
+                    return ""  # hit the next header -> this field was empty
+                return s2.strip("*").strip()
+            return ""
     return ""
 
 
