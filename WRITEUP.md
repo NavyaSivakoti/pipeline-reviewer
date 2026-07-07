@@ -38,10 +38,18 @@ failing test. On PR/push, CI fails and the agent auto-posts a review comment:
 
 
 ## 6. Evaluation
-`eval/run_eval.py` scores the agent on **10 labelled scenarios** (incl. Java/Maven,
-deploy, and config cases) for failure-type, security-flag, and fix-suggested accuracy.
-*(Fill the numbers from `eval/results.md` after a run; the free-tier daily cap
-means running the full sweep when quota is fresh.)*
+The agent is evaluated on **11 labelled failure scenarios** (`eval/dataset.json`) —
+dependency, test, build, deploy, config, infra, lint, flaky, plus an adversarial
+"unknown" case (the agent must not invent a cause). Each review is scored two ways:
+**rule-based checks** (right failure type, security flag, fix present, all sections,
+no secret leaked) and an **LLM-as-judge** that grades root-cause correctness and fix
+quality against a reference answer. These roll up into a **weighted composite score
+(0–1)**; the agent passes if the average is **≥ 0.80**. A curated 5-case subset runs
+on every pull request; the full 11 run before a release. Deterministic tests (unit +
+orchestration + tool-trajectory — 40 in total) run on every PR as well.
+
+See **[`eval/README.md`](eval/README.md)** for how to run it and the full details;
+the scores land in `eval/results.md`.
 
 ## 7. Whitepaper concepts (all 5 days)
 - **Day 1** agent + context engineering + the Action as a harness
