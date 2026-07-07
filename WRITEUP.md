@@ -117,4 +117,4 @@ spec-driven development + human-in-the-loop (agent suggests, human applies).
 
 **Code (pipeline-reviewer-agent):** https://github.com/NavyaSivakoti/pipeline-reviewer
 **Code (demo-app):** https://github.com/NavyaSivakoti/demo-app 
-**Video:** YouTube link -
+**Video:** YouTube link - https://youtu.be/MGeaSuhWfrw
