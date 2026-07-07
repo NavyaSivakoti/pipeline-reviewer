@@ -1,41 +1,112 @@
 # Evaluation & Testing
 
-The agent has two kinds of parts, so it's tested two ways:
+How the Pipeline Reviewer agent is tested. Two kinds of testing, because the
+system has two kinds of component:
 
-- **Tools + plumbing** (plain code, same output every time) -> **`pytest`** tests with exact assertions.
-- **The AI's review** (Gemini text, never identical twice) -> **evaluation**: score the objective bits by rule, and grade the subjective bits (root cause, fix) with an LLM judge.
+- **Deterministic parts** (the 6 tools, the orchestration layer) -> **assert-based tests** (`pytest`). Fast, deterministic, run in CI.
+- **The LLM agent** (Gemini) -> **evaluation**, because its output is generated text and can't be asserted against an exact string. We score the objective bits deterministically and grade the subjective bits with an LLM judge.
 
-## How to run
+## Test layers
+
+| Layer | Where | Kind | Runs in CI? |
+|-------|-------|------|-------------|
+| Tool unit tests | `tests/test_redaction.py`, `test_read_log.py`, `test_supply_chain.py`, `test_tools_extra.py` | deterministic | yes |
+| Orchestration (retry/blank-guard, mocked) | `tests/test_orchestration.py` | deterministic | yes |
+| Tool-trajectory (right tool + arg, from cache) | `tests/test_trajectory.py` | deterministic | yes (skips w/o cache) |
+| Deterministic eval (failure-type, security, fix, sections, no-secret) | `eval/run_eval.py` | Gemini agent | subset on every PR |
+| LLM-as-judge (root-cause + fix quality) | `eval/judge.py` | LLM judge | subset on every PR |
+
+## When each runs (cadence)
+
+| Trigger | What runs | Where |
+|---|---|---|
+| **Every push / PR** | Deterministic tests (unit + orchestration + trajectory) | `.github/workflows/tests.yml` |
+| **Every PR** | 5 important eval cases (agent + judge), live | `.github/workflows/pr-eval.yml` |
+| **Weekly / before a release / on a prompt or model change** | **Full 11-case** eval + judge (manual) | `python eval/run_eval.py --judge` |
+
+The **PR gate** runs a curated subset - the cases tagged **`pr_gate`** in
+`dataset.json` (`gha_dependency`, `payments_test`, `docker_build`,
+`deploy_readiness`, `ambiguous_unknown` - one per key category) - so it scales
+as the golden set grows. **Nothing is removed:** the full 11-case suite always
+runs on the weekly/release cadence; the PR just runs the important few. The PR
+gate fails if the average composite score < 0.80.
+
+CI secrets: `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`.
+
+## Commands
 
 ```bash
-pytest                                    # all the code tests (fast, no API key)
-python eval/run_eval.py --judge           # run the agent on all 11 cases + judge -> eval/results.md
-python eval/run_eval.py --cached --judge   # re-score the last run without calling the agent
+# --- deterministic tests (what CI runs on every push/PR) ---
+pytest                                           # all tests, with names + summary (config in pytest.ini)
+pytest --cov=tools --cov-report=term-missing     # with coverage (tools.py ~92%)
+
+# --- run the agent over the golden set ---
+python eval/run_eval.py                           # runs missing cases, caches to eval/reviews/, writes results.md
+#   Re-run to RESUME: reuses cached reviews, only runs cases not yet done.
+python eval/run_eval.py --judge                   # + LLM judge -> full scorecard
+python eval/run_eval.py --tag pr_gate --judge     # just the PR-gate subset (5 cases)
+
+# --- re-score cached reviews (no agent calls) ---
+python eval/run_eval.py --cached                  # re-score deterministically
+python eval/run_eval.py --cached --judge          # + LLM judge (model in judge.py)
+python eval/judge.py                              # judge only -> judge_results.md
 ```
-Needs a `.env` with `GEMINI_API_KEY` (agent) and `ANTHROPIC_API_KEY` (judge).
 
-## When each runs
+Requires `.env` with `GEMINI_API_KEY` (agent) and, for the judge, `ANTHROPIC_API_KEY`.
 
-| When | What runs |
-|---|---|
-| **Every PR** | the code tests **+ 5 key eval cases** (tagged `pr_gate`) with the judge |
-| **Weekly / before a release / after a prompt or model change** | the **full 11-case** eval |
+## The golden set
 
-The PR runs a representative 5 (one per failure type) so it stays quick as the dataset grows; the full set runs less often. A PR passes if the average score is **≥ 0.80**.
+`dataset.json` - 11 labelled failures covering dependency, test, flaky, lint,
+build, deploy, config, infra, plus one **adversarial** `ambiguous_unknown` case
+(a failure with no clear cause; the agent should say "unknown", not invent one).
+Each case carries a `reference_root_cause` and `reference_fix` that the judge
+grades against. The 5 cases tagged **`pr_gate`** are the per-PR subset.
 
-## The dataset
+## Scoring - the pass/fail line (weighted composite)
 
-`dataset.json` — **11 labelled pipeline failures** (dependency, test, build, deploy, config, infra, lint, flaky) plus one **"unknown"** case where the agent must say it can't tell instead of inventing a cause. Each case stores the correct `reference_root_cause` and `reference_fix` for the judge to grade against. The 5 cases tagged `pr_gate` are the per-PR subset.
+Each response gets a **weighted composite score (0-1)**, like promptfoo's
+weighted assertions. Deterministic checks + the judge (0-2, scaled) contribute
+points; a **leaked secret is a hard 0** (gate). Weights live in `run_eval.py`
+(`COMPOSITE_WEIGHTS` / `JUDGE_WEIGHTS`). The agent **PASSes if the average
+composite >= 0.80** (`COMPOSITE_PASS`). `run_eval.py` exits non-zero on FAIL so
+CI can gate on it. `results.md` shows the composite per case, the overall
+verdict, and a per-metric breakdown.
 
-## How scoring works
+Run a subset by tag or id:
+`python eval/run_eval.py --tag pr_gate --judge` or `--only gha_dependency,docker_build`.
 
-Each review gets **one score from 0 to 1** — a weighted mix of the checks below. A **leaked secret is an automatic 0**. The agent passes if the average across cases is **≥ 0.80**. `results.md` shows the score per case plus the breakdown.
+## Reproducibility
 
-- **Rule-based checks:** right failure type · security flag correct · fix present · all sections present · no secret leaked
-- **Judge (0–2 each):** is the root cause correct · would the fix actually work
+The recurrence tool writes state and the agent hits live registries, so the eval
+takes care to stay reproducible: every review is **cached** (`eval/reviews/`,
+git-ignored), a re-run **resumes** (reuses cached reviews, only runs the cases
+not yet done), and the recurrence memory is **reset per run** so a stale memory
+file can't change results between runs. The runner also retries with backoff on
+transient rate-limit / overload responses.
 
-## Good to know
+## Judge validation (do this once, whenever the judge changes)
 
-- **Sanity-check the judge once:** grade ~4 reviews yourself and compare to `results.md`. If it agrees, trust it; only re-check if you change the judge's model or prompt.
-- **AI output varies slightly run-to-run** — re-run for confidence.
-- Secret redaction is pattern-based (catches known key formats), and `check_package` does a live PyPI/Maven lookup during a run.
+The judge is only trustworthy if it agrees with a human. To validate: pick ~4
+cached reviews, grade root-cause and fix 0/1/2 yourself, and compare to
+`results.md`. Agreement within +/-1 on >=3 of 4 = trust it; otherwise tighten
+the `SYSTEM` prompt in `judge.py`, or use a stronger `JUDGE_MODEL` (one line in
+`judge.py`). The judge model is a reasoning model; it is discriminating (it docks
+vague fixes to 1/2 while giving exact ones 2/2). Re-validate only when you change
+the judge's model or rubric.
+
+## Known limitations (honest caveats)
+
+- **The "no secret leaked" check is sampled, not exhaustive** - it relies on
+  `redact_secrets`, which catches known formats (Google/AWS/GitHub keys, bearer
+  tokens, `password=`). A format not in the pattern list would slip past the
+  check, so a passing eval samples redaction rather than proving it airtight.
+- **The `check_package` signal is time-dependent** - the eval calls PyPI/Maven
+  live, so that one score can shift between runs (a package's latest version can
+  change; offline runs degrade to "unknown"). The eval resets recurrence memory
+  per run but can't freeze the network.
+- **LLM output varies run to run** - results here are a single run. Re-run for
+  confidence; a case can flip on wording. (`integration_db` was a borderline
+  label - the agent calls it `infra`, which we adopted as the expected type.)
+- **Coverage** - `tools.py` ~92%; the uncovered lines are HTTP-error-code and
+  `gh`-nonzero-return branches that aren't worth mocking.
+</content>
