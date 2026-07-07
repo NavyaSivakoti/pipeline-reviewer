@@ -31,7 +31,7 @@ as the golden set grows. **Nothing is removed:** the full 11-case suite always
 runs on the weekly/release cadence; the PR just runs the important few. The PR
 gate fails if the average composite score < 0.80.
 
-CI secrets: `GEMINI_API_KEY` (fed into `GOOGLE_API_KEY`) and `ANTHROPIC_API_KEY`.
+CI secrets: `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`.
 
 ## Commands
 
@@ -52,7 +52,7 @@ python eval/run_eval.py --cached --judge          # + LLM judge (model in judge.
 python eval/judge.py                              # judge only -> judge_results.md
 ```
 
-Requires `.env` with `GOOGLE_API_KEY` (agent) and, for the judge, `ANTHROPIC_API_KEY`.
+Requires `.env` with `GEMINI_API_KEY` (agent) and, for the judge, `ANTHROPIC_API_KEY`.
 
 ## The golden set
 

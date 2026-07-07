@@ -28,8 +28,7 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Run PR eval (5 important cases + judge)
         env:
-          # secret is named GEMINI_API_KEY in the repo; the code reads GOOGLE_API_KEY
-          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_GENAI_USE_VERTEXAI: "False"
           GEMINI_MODEL: gemini-3.1-flash-lite
