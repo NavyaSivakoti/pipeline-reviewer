@@ -6,8 +6,9 @@ label, whether a fix/flag is present, no secret leaked). They CANNOT tell
 whether the reviewer's prose is actually right: is the stated root cause the
 real cause, and would the suggested fix work?
 
-Those two questions need reasoning, so we grade them with an LLM judge -
-Claude Haiku (claude-haiku-4-5) - against the reference answer in dataset.json.
+Those two questions need reasoning, so we grade them with an LLM judge
+(a Claude reasoning model - see JUDGE_MODEL) against the reference answers
+in dataset.json.
 Each field is scored 0/1/2 with a one-line justification:
 
     2 = correct   - identifies the real cause / a fix that would resolve it
