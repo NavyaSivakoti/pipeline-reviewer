@@ -1,8 +1,8 @@
 name: tests
 
-# Runs the FREE, deterministic tests on every push/PR (unit + orchestration +
-# trajectory). The live smoke test and the paid eval are excluded here - they
-# need API keys/quota and are run manually.
+# Runs the deterministic tests on every push/PR (unit + orchestration +
+# trajectory). The agent eval runs separately: the pr_gate subset on PRs
+# (pr-eval.yml) and the full suite weekly / on demand.
 
 on:
   push:
@@ -18,5 +18,5 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
-      - name: Run tests (exclude live) with coverage
-        run: pytest -m "not live" --cov=tools --cov-report=term-missing
+      - name: Run tests with coverage
+        run: pytest --cov=tools --cov-report=term-missing
