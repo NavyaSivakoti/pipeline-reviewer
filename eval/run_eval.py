@@ -4,7 +4,7 @@ run_eval.py - the evaluation harness.
 Runs the Pipeline Reviewer on labelled CI/CD failures and scores it on two
 kinds of check:
 
-DETERMINISTIC (objective, string checks - free):
+DETERMINISTIC (objective, string checks):
   1. Failure-type accuracy
   2. Security-flag accuracy (did it flag supply-chain risk when it should?)
   3. Fix suggested (did it propose a fix?)
@@ -12,16 +12,16 @@ DETERMINISTIC (objective, string checks - free):
   5. No secret leaked into the review (security guardrail)
 
 LLM-AS-JUDGE (subjective, needs reasoning - optional, via --judge):
-  6. Root-cause correctness   } graded 0/1/2 by Claude Haiku against the
+  6. Root-cause correctness   } graded 0/1/2 by an LLM judge against the
   7. Fix quality              } reference answers in dataset.json (see judge.py)
 
 Every review is cached under eval/reviews/ so the deterministic scoring, the
-judge, and the tool-trajectory tests can all re-run offline for free.
+judge, and the tool-trajectory tests can all re-run offline without the agent.
 
 Usage:
-  python eval/run_eval.py                  # run the agent (costs Gemini calls), score, cache
-  python eval/run_eval.py --cached         # re-score cached reviews (no Gemini calls)
-  python eval/run_eval.py --cached --judge # re-score + run the Claude Haiku judge
+  python eval/run_eval.py                  # run the agent, score, cache
+  python eval/run_eval.py --cached         # re-score cached reviews (no agent calls)
+  python eval/run_eval.py --cached --judge # re-score + run the LLM judge
 """
 
 import argparse
@@ -135,9 +135,9 @@ def score_review(review: str, case: dict) -> dict:
 def get_review(case: dict, cached: bool):
     """Return (review_text, tools_called). From disk if cached, else run the agent.
 
-    A live run costs ~5-6 Gemini calls; the free tier is ~20/day. So we cache
+    A live run calls the agent (several model calls per case), so we cache
     both the review text and the list of tools the LLM called, letting the
-    scorer, judge, and trajectory tests re-run offline for free.
+    scorer, judge, and trajectory tests re-run offline without the agent.
     """
     md = os.path.join(REVIEWS_DIR, f"{case['id']}.md")
     tj = os.path.join(REVIEWS_DIR, f"{case['id']}.tools.json")
@@ -152,8 +152,8 @@ def get_review(case: dict, cached: bool):
         return _load()
 
     # Resume: a normal run reuses any review already cached and only calls the
-    # agent for the missing cases, so a quota-limited eval can be filled in over
-    # several runs (add a fresh key, re-run, it picks up where it left off).
+    # agent for the missing cases, so a partial eval can be finished over
+    # several runs - re-run and it picks up where it left off.
     if os.path.exists(md):
         print("    (reused cached review - already done)")
         return _load()
