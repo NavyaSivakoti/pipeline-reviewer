@@ -33,11 +33,9 @@ A retry/backoff harness handles free-tier 429/503.
 
 ## 5. Live demo (it really runs)
 The [demo-app](https://github.com/NavyaSivakoti/demo-app) has an intentionally
-failing test. On push, CI fails and the agent auto-posts a review comment, e.g.:
+failing test. On PR/push, CI fails and the agent auto-posts a review comment:
+- **PR review comment** — [demo-app#2](https://github.com/NavyaSivakoti/demo-app/pull/2): the agent read the PR diff, tied the failure to the **newly-added `app/auth.py`**, proposed the fix as a patch, and **@-mentioned the PR author** ([see the posted comment](https://github.com/NavyaSivakoti/demo-app/pull/2#issuecomment-4885142136)).
 
-> **Failure Type:** test_failure · **Root Cause:** `create_charge` returns 'USD'
-> even when 'EUR' is passed · **Suggested Fix:**
-> `- "currency": "USD"` → `+ "currency": currency` · **Confidence:** High.
 
 ## 6. Evaluation
 `eval/run_eval.py` scores the agent on **10 labelled scenarios** (incl. Java/Maven,
