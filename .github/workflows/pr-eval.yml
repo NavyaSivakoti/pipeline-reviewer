@@ -1,0 +1,35 @@
+name: pr-eval
+
+# On every PR, run a curated subset of the eval (the agent + judge) live, so a
+# change that breaks the agent's review quality on an important scenario fails
+# the PR. The full 11-case eval runs weekly / before a release, not per-PR.
+#
+# The 5 subset cases cover the key categories:
+#   gha_dependency  -> dependency + supply-chain security flag
+#   payments_test   -> test failure + JUnit XML parsing
+#   docker_build    -> build error
+#   deploy_readiness-> deploy failure
+#   ambiguous_unknown-> robustness (must not hallucinate a cause)
+#
+# Gate: run_eval.py exits non-zero if the average composite score < 0.80.
+
+on:
+  pull_request:
+
+jobs:
+  pr-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run PR eval (5 important cases + judge)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_GENAI_USE_VERTEXAI: "False"
+          GEMINI_MODEL: gemini-3.1-flash-lite
+        run: python eval/run_eval.py --tag pr_gate --judge

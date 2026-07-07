@@ -1,0 +1,21 @@
+name: tests
+
+# Runs the deterministic tests on every pull request (unit + orchestration +
+# trajectory). The agent eval runs separately: the pr_gate subset on PRs
+# (pr-eval.yml) and the full suite weekly / on demand.
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run tests with coverage
+        run: pytest --cov=tools --cov-report=term-missing
