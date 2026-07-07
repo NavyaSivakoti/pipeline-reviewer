@@ -3,6 +3,10 @@ Security tests: prove that secrets are redacted BEFORE any text reaches the mode
 
 Covers the redaction function directly, and both model-input paths (read_log and
 parse_junit_results). Run with:  pytest
+
+NOTE: the secrets below are FAKE, made-up test values - not real credentials.
+`AKIAIOSF••••••••••••` is AWS's public documentation example key. They exist only so
+the test can feed secret-shaped strings into the redactor and assert that none survive.
 """
 
 import tools
