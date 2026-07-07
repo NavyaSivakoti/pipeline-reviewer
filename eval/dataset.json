@@ -1,6 +1,7 @@
 [
   {
     "id": "gha_dependency",
+    "tags": ["pr_gate"],
     "artifacts": ["sample_data/github_actions_failure.log"],
     "expected_type": "dependency",
     "expected_security": "flag",
@@ -9,6 +10,7 @@
   },
   {
     "id": "payments_test",
+    "tags": ["pr_gate"],
     "artifacts": ["sample_data/failing_pipeline.log", "sample_data/junit_results.xml"],
     "expected_type": "test_failure",
     "expected_security": "none",
@@ -41,6 +43,7 @@
   },
   {
     "id": "docker_build",
+    "tags": ["pr_gate"],
     "artifacts": ["sample_data/docker_build_failure.log"],
     "expected_type": "build",
     "expected_security": "none",
@@ -65,6 +68,7 @@
   },
   {
     "id": "deploy_readiness",
+    "tags": ["pr_gate"],
     "artifacts": ["sample_data/deploy_failure.log"],
     "expected_type": "deploy",
     "expected_security": "none",
@@ -81,6 +85,7 @@
   },
   {
     "id": "ambiguous_unknown",
+    "tags": ["pr_gate"],
     "artifacts": ["sample_data/ambiguous_unknown.log"],
     "expected_type": "unknown",
     "expected_security": "none",

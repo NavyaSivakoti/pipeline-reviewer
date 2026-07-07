@@ -234,15 +234,18 @@ def main() -> None:
                     help="score reviews saved in eval/reviews/ instead of calling Gemini")
     ap.add_argument("--judge", action="store_true",
                     help="also run the LLM judge (root-cause + fix quality)")
-    ap.add_argument("--only", help="comma-separated case ids to run (e.g. the PR smoke subset)")
+    ap.add_argument("--only", help="comma-separated case ids to run")
+    ap.add_argument("--tag", help="run only cases carrying this tag in dataset.json (e.g. pr_gate)")
     args = ap.parse_args()
 
     cases = json.load(open(DATASET))
     if args.only:
         wanted = {i.strip() for i in args.only.split(",")}
         cases = [c for c in cases if c["id"] in wanted]
-        if not cases:
-            sys.exit(f"--only matched no cases; ids are: {[c['id'] for c in json.load(open(DATASET))]}")
+    if args.tag:
+        cases = [c for c in cases if args.tag in c.get("tags", [])]
+    if not cases:
+        sys.exit("no cases matched --only / --tag")
     n = len(cases)
 
     if not args.cached:

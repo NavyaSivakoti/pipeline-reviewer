@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 @pytest.mark.live
-@pytest.mark.skipif(os.getenv("RUN_LIVE") != "1", reason="live test; set RUN_LIVE=1 to run")
+@pytest.mark.skipif(os.getenv("RUN_LIVE") != "1", reason="calls the real Gemini API; set RUN_LIVE=1 to run")
 def test_cli_produces_a_review():
     out = subprocess.run(
         [sys.executable, "run.py", "sample_data/github_actions_failure.log"],

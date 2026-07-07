@@ -19,4 +19,4 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Run tests (exclude live) with coverage
-        run: pytest -q -m "not live" --cov=tools --cov-report=term-missing
+        run: pytest -m "not live" --cov=tools --cov-report=term-missing
