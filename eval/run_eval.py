@@ -70,6 +70,14 @@ JUDGE_THRESHOLDS = {
     "fix_score":        ("Fix quality",            1.2),
 }
 
+# Weighted composite score per response (0-1), like promptfoo's weighted
+# assertions. Deterministic checks contribute points; the judge (0-2) is scaled.
+# no_secret_leaked is a HARD GATE: a leaked secret forces the score to 0.
+# Weights sum to 100 (55 deterministic + 45 judge). Tune as you like.
+COMPOSITE_WEIGHTS = {"type_ok": 20, "security_ok": 15, "fix_ok": 10, "sections_ok": 10}
+JUDGE_WEIGHTS = {"root_cause_score": 25, "fix_score": 20}
+COMPOSITE_PASS = 0.80  # a response scoring >= this is "reasonable"; agent PASSes if the average does
+
 
 def extract_field(text: str, label: str) -> str:
     """Pull a section's value out of the review.
@@ -207,15 +215,34 @@ def _judge_scorecard(judged: list) -> list:
     return rows
 
 
+def composite_score(det: dict, judge: dict | None) -> float:
+    """Weighted composite for one response, 0-1. Secret leak = hard 0."""
+    if not det.get("no_secret_leaked", True):
+        return 0.0  # gate: a leaked secret fails the response outright
+    pts = sum(w for k, w in COMPOSITE_WEIGHTS.items() if det.get(k))
+    maxpts = sum(COMPOSITE_WEIGHTS.values())
+    if judge and "error" not in judge:  # judge only counts when it ran
+        pts += (judge["root_cause_score"] / 2) * JUDGE_WEIGHTS["root_cause_score"]
+        pts += (judge["fix_score"] / 2) * JUDGE_WEIGHTS["fix_score"]
+        maxpts += sum(JUDGE_WEIGHTS.values())
+    return round(pts / maxpts, 2)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Score the Pipeline Reviewer on labelled failures.")
     ap.add_argument("--cached", action="store_true",
                     help="score reviews saved in eval/reviews/ instead of calling Gemini")
     ap.add_argument("--judge", action="store_true",
-                    help="also run the Claude Haiku judge (root-cause + fix quality)")
+                    help="also run the LLM judge (root-cause + fix quality)")
+    ap.add_argument("--only", help="comma-separated case ids to run (e.g. the PR smoke subset)")
     args = ap.parse_args()
 
     cases = json.load(open(DATASET))
+    if args.only:
+        wanted = {i.strip() for i in args.only.split(",")}
+        cases = [c for c in cases if c["id"] in wanted]
+        if not cases:
+            sys.exit(f"--only matched no cases; ids are: {[c['id'] for c in json.load(open(DATASET))]}")
     n = len(cases)
 
     if not args.cached:
@@ -262,32 +289,47 @@ def main() -> None:
         if not args.cached:
             time.sleep(3)
 
-    write_report(rows, judged, tallies, n)
+    overall = write_report(rows, judged, tallies, n)
+    sys.exit(0 if overall else 1)  # non-zero fails the CI/PR check
 
 
-def write_report(rows: list, judged: list, tallies: dict, n: int) -> None:
+def write_report(rows: list, judged: list, tallies: dict, n: int) -> bool:
+    """Write results.md and return the overall pass/fail (avg composite >= bar)."""
+    judged_by_id = {g["id"]: g for g in judged}
+    comps = [(r["id"], composite_score(r, judged_by_id.get(r["id"]))) for r in rows]
+    avg = round(sum(c for _, c in comps) / len(comps), 2) if comps else 0.0
+    overall = avg >= COMPOSITE_PASS
+
     det = _det_scorecard(tallies, n)
     jud = _judge_scorecard(judged) if judged else []
-    overall = all(p for *_, p in det) and all(p for *_, p in jud)
 
     print("\n" + "=" * 64)
-    for label, val, bar, tot, passed in det + jud:
-        print(f"{'PASS' if passed else 'FAIL'}  {label:24s} {val}/{tot}  (need >= {bar})")
-    print(f"\nOVERALL: {'PASS' if overall else 'FAIL'}")
+    for cid, c in comps:
+        print(f"{'PASS' if c >= COMPOSITE_PASS else 'FAIL'}  {cid:20s} composite {c:.2f}")
+    print(f"\nAGENT SCORE (avg composite): {avg:.2f}  ->  "
+          f"{'PASS' if overall else 'FAIL'}  (need >= {COMPOSITE_PASS})")
 
+    tick = lambda b: "PASS" if b else "FAIL"  # noqa: E731
     with open(RESULTS_MD, "w") as f:
         f.write("# Evaluation results\n\n")
+        f.write(f"**Agent score (avg composite): {avg:.2f} -> "
+                f"{'PASS' if overall else 'FAIL'}** (threshold {COMPOSITE_PASS}, "
+                "secret leak = automatic 0)\n\n")
 
-        f.write("## Per-case (deterministic)\n\n")
+        f.write("## Composite score per case (weighted, 0-1)\n\n")
+        f.write("| Case | Composite | Result |\n|------|:---------:|:------:|\n")
+        for cid, c in comps:
+            f.write(f"| {cid} | {c:.2f} | {tick(c >= COMPOSITE_PASS)} |\n")
+
+        f.write("\n## Per-case deterministic\n\n")
         f.write("| Case | Type | Security | Fix | Sections | No-secret |\n")
         f.write("|------|:----:|:--------:|:---:|:--------:|:---------:|\n")
-        tick = lambda b: "PASS" if b else "FAIL"  # noqa: E731
         for r in rows:
             f.write(f"| {r['id']} | {tick(r['type_ok'])} | {tick(r['security_ok'])} | "
                     f"{tick(r['fix_ok'])} | {tick(r['sections_ok'])} | {tick(r['no_secret_leaked'])} |\n")
 
         if judged:
-            f.write("\n## Per-case (Claude Haiku judge)\n\n")
+            f.write("\n## Per-case (LLM judge)\n\n")
             f.write("| Case | Root cause | Fix | Notes |\n")
             f.write("|------|:----------:|:---:|-------|\n")
             for g in judged:
@@ -297,14 +339,14 @@ def write_report(rows: list, judged: list, tallies: dict, n: int) -> None:
                     note = g["root_cause_reason"].replace("|", "\\|")
                     f.write(f"| {g['id']} | {g['root_cause_score']}/2 | {g['fix_score']}/2 | {note} |\n")
 
-        f.write("\n## Scorecard (metric vs threshold)\n\n")
+        f.write("\n## Metric breakdown (vs thresholds)\n\n")
         f.write("| Metric | Score | Threshold | Result |\n")
         f.write("|--------|:-----:|:---------:|:------:|\n")
         for label, val, bar, tot, passed in det + jud:
-            f.write(f"| {label} | {val}/{tot} | >= {bar} | {'PASS' if passed else 'FAIL'} |\n")
-        f.write(f"\n**OVERALL: {'PASS' if overall else 'FAIL'}**\n")
+            f.write(f"| {label} | {val}/{tot} | >= {bar} | {tick(passed)} |\n")
 
     print(f"\nSaved -> {RESULTS_MD}")
+    return overall
 
 
 if __name__ == "__main__":

@@ -1,6 +1,24 @@
 # Evaluation results
 
-## Per-case (deterministic)
+**Agent score (avg composite): 0.99 -> PASS** (threshold 0.8, secret leak = automatic 0)
+
+## Composite score per case (weighted, 0-1)
+
+| Case | Composite | Result |
+|------|:---------:|:------:|
+| gha_dependency | 1.00 | PASS |
+| payments_test | 1.00 | PASS |
+| jenkins_auth | 0.90 | PASS |
+| flaky_test | 1.00 | PASS |
+| lint_only | 1.00 | PASS |
+| docker_build | 1.00 | PASS |
+| integration_db | 1.00 | PASS |
+| maven_dependency | 1.00 | PASS |
+| deploy_readiness | 1.00 | PASS |
+| config_missing_env | 1.00 | PASS |
+| ambiguous_unknown | 1.00 | PASS |
+
+## Per-case deterministic
 
 | Case | Type | Security | Fix | Sections | No-secret |
 |------|:----:|:--------:|:---:|:--------:|:---------:|
@@ -10,38 +28,36 @@
 | flaky_test | PASS | PASS | PASS | PASS | PASS |
 | lint_only | PASS | PASS | PASS | PASS | PASS |
 | docker_build | PASS | PASS | PASS | PASS | PASS |
-| integration_db | FAIL | PASS | PASS | PASS | PASS |
+| integration_db | PASS | PASS | PASS | PASS | PASS |
 | maven_dependency | PASS | PASS | PASS | PASS | PASS |
 | deploy_readiness | PASS | PASS | PASS | PASS | PASS |
 | config_missing_env | PASS | PASS | PASS | PASS | PASS |
 | ambiguous_unknown | PASS | PASS | PASS | PASS | PASS |
 
-## Per-case (Claude Haiku judge)
+## Per-case (LLM judge)
 
 | Case | Root cause | Fix | Notes |
 |------|:----------:|:---:|-------|
-| gha_dependency | 2/2 | 2/2 | The agent correctly identified the root cause: a typo in requirements.txt where `requests` was misspelled as `reqests`, causing pip to fail with 'No matching distribution found'. |
-| payments_test | 2/2 | 2/2 | The agent correctly identified that the mock payment gateway does not support the 'currency' field and that this causes the GatewayError 500 when test_checkout calls create_charge with that parameter. |
-| jenkins_auth | 1/2 | 1/2 | The agent correctly identifies that the auth token was rejected (401 response), but frames it ambiguously as "token validation logic or test setup" when the reference clearly indicates the root cause is the token validation/auth handling in the application itself, not the test setup. |
-| flaky_test | 2/2 | 1/2 | The agent correctly identified that the test is a known flaky test that times out connecting to search-service, matching the reference cause of a timing/environmental issue rather than a code defect. |
-| lint_only | 2/2 | 2/2 | The agent correctly identified that ruff detected an unused import 'os' on line 12 and a line-length violation on line 40, matching the reference root cause exactly. |
-| docker_build | 2/2 | 2/2 | The agent correctly identified that the python:3.11-slim base image lacks libpq-dev and gcc/build tools needed to compile psycopg2 C extensions, matching the reference root cause exactly. |
-| integration_db | 2/2 | 2/2 | The agent correctly identified that integration tests ran immediately after docker-compose started without waiting for the database to finish initialization, causing a connection refused error due to the missing healthcheck/wait mechanism. |
-| maven_dependency | 2/2 | 2/2 | The agent correctly identified that the artifact ID is misspelled as `jackson-databin` instead of `jackson-databind`, which prevents Maven Central from resolving the dependency. |
-| deploy_readiness | 2/2 | 1/2 | The agent correctly identifies that the readiness probe failed to pass within the timeout period, causing the deployment rollback, and correctly locates the failure in the application health/startup rather than the build process. |
-| config_missing_env | 2/2 | 2/2 | The agent correctly identified that the staging environment is missing the required DATABASE_URL and REDIS_HOST environment variables, matching the reference root cause exactly. |
-| ambiguous_unknown | 2/2 | 2/2 | The agent correctly identifies that the log lacks sufficient detail to determine a specific root cause, matching the reference assessment that evidence is insufficient. |
+| gha_dependency | 2/2 | 2/2 | The agent correctly identified the typo of 'requests' as 'reqests' in requirements.txt causing the install failure. |
+| payments_test | 2/2 | 2/2 | Agent correctly identifies that the mock gateway does not support the 'currency' field being passed by create_charge, matching the reference cause. |
+| jenkins_auth | 2/2 | 1/2 | The agent correctly identifies that the test fails because the auth token is rejected (401) instead of accepted (200), matching the reference cause. |
+| flaky_test | 2/2 | 2/2 | The agent correctly identifies the timeout on search-service as a known flaky test, matching the reference root cause. |
+| lint_only | 2/2 | 2/2 | Correctly identifies both the unused 'os' import and the line-too-long violation in app/utils.py matching the reference. |
+| docker_build | 2/2 | 2/2 | The agent correctly identified the missing libpq-dev and gcc/build tools in python:3.11-slim as the cause of the psycopg2 build failure. |
+| integration_db | 2/2 | 2/2 | The agent correctly identifies the race condition where tests run before the DB is ready, matching the reference cause. |
+| maven_dependency | 2/2 | 2/2 | The agent correctly identified the misspelled artifact ID as the root cause, matching the reference exactly. |
+| deploy_readiness | 2/2 | 2/2 | The agent correctly identified that the readiness probe on /healthz failed within the timeout, causing rollback, matching the reference root cause. |
+| config_missing_env | 2/2 | 2/2 | The agent correctly identifies the missing DATABASE_URL and REDIS_HOST environment variables in staging as the root cause, matching the reference. |
+| ambiguous_unknown | 2/2 | 2/2 | The agent correctly identifies that the log lacks sufficient detail to pinpoint a specific cause, matching the reference's core conclusion. |
 
-## Scorecard (metric vs threshold)
+## Metric breakdown (vs thresholds)
 
 | Metric | Score | Threshold | Result |
 |--------|:-----:|:---------:|:------:|
-| Failure-type accuracy | 10/11 | >= 9 | PASS |
+| Failure-type accuracy | 11/11 | >= 9 | PASS |
 | Security-flag accuracy | 11/11 | >= 10 | PASS |
 | Fix suggested | 11/11 | >= 10 | PASS |
 | All sections present | 11/11 | >= 11 | PASS |
 | No secret leaked | 11/11 | >= 11 | PASS |
-| Root-cause correctness | 21/22 | >= 16 | PASS |
-| Fix quality | 19/22 | >= 14 | PASS |
-
-**OVERALL: PASS**
+| Root-cause correctness | 22/22 | >= 16 | PASS |
+| Fix quality | 21/22 | >= 14 | PASS |
