@@ -37,7 +37,7 @@ CI secrets: `GEMINI_API_KEY` (fed into `GOOGLE_API_KEY`) and `ANTHROPIC_API_KEY`
 
 ```bash
 # --- free / deterministic (what CI runs) ---
-pytest -q -m "not live"                          # all free tests
+pytest -m "not live"                             # all free tests (names + summary via pytest.ini)
 pytest --cov=tools --cov-report=term-missing     # with coverage (tools.py ~92%)
 
 # --- paid: run the agent over the golden set (costs Gemini quota) ---

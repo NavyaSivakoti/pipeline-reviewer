@@ -33,7 +33,4 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_GENAI_USE_VERTEXAI: "False"
           GEMINI_MODEL: gemini-3.1-flash-lite
-        run: >
-          python eval/run_eval.py
-          --only gha_dependency,payments_test,docker_build,deploy_readiness,ambiguous_unknown
-          --judge
+        run: python eval/run_eval.py --tag pr_gate --judge
