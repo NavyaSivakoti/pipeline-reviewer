@@ -38,17 +38,17 @@
 
 | Case | Root cause | Fix | Notes |
 |------|:----------:|:---:|-------|
-| gha_dependency | 2/2 | 2/2 | The agent correctly identified the typo of 'requests' as 'reqests' in requirements.txt causing the install failure. |
-| payments_test | 2/2 | 2/2 | Agent correctly identifies that the mock gateway does not support the 'currency' field being passed by create_charge, matching the reference cause. |
-| jenkins_auth | 2/2 | 1/2 | The agent correctly identifies that the test fails because the auth token is rejected (401) instead of accepted (200), matching the reference cause. |
-| flaky_test | 2/2 | 2/2 | The agent correctly identifies the timeout on search-service as a known flaky test, matching the reference root cause. |
-| lint_only | 2/2 | 2/2 | Correctly identifies both the unused 'os' import and the line-too-long violation in app/utils.py matching the reference. |
-| docker_build | 2/2 | 2/2 | The agent correctly identified the missing libpq-dev and gcc/build tools in python:3.11-slim as the cause of the psycopg2 build failure. |
-| integration_db | 2/2 | 2/2 | The agent correctly identifies the race condition where tests run before the DB is ready, matching the reference cause. |
-| maven_dependency | 2/2 | 2/2 | The agent correctly identified the misspelled artifact ID as the root cause, matching the reference exactly. |
-| deploy_readiness | 2/2 | 2/2 | The agent correctly identified that the readiness probe on /healthz failed within the timeout, causing rollback, matching the reference root cause. |
-| config_missing_env | 2/2 | 2/2 | The agent correctly identifies the missing DATABASE_URL and REDIS_HOST environment variables in staging as the root cause, matching the reference. |
-| ambiguous_unknown | 2/2 | 2/2 | The agent correctly identifies that the log lacks sufficient detail to pinpoint a specific cause, matching the reference's core conclusion. |
+| gha_dependency | 2/2 | 2/2 | Agent correctly identified the misspelled 'requests' package as 'reqests' causing the install failure. |
+| payments_test | 2/2 | 2/2 | The agent correctly identifies that the mock payment gateway rejects the 'currency' field passed by create_charge, matching the reference cause. |
+| jenkins_auth | 2/2 | 1/2 | The agent correctly identifies that the test fails because a valid token is being rejected with 401 instead of returning 200, matching the reference cause. |
+| flaky_test | 2/2 | 2/2 | Agent correctly identifies the timeout on search-service as a known flaky test, matching the reference cause. |
+| lint_only | 2/2 | 2/2 | The agent correctly identified both the unused import (F401) and the line-length violation (E501) in app/utils.py as the root cause. |
+| docker_build | 2/2 | 2/2 | The agent correctly identifies missing libpq-dev and gcc in the python:3.11-slim image as the cause of the psycopg2 build failure, matching the reference. |
+| integration_db | 2/2 | 2/2 | The agent correctly identifies the race condition where tests run before the DB is ready, matching the reference root cause. |
+| maven_dependency | 2/2 | 2/2 | The agent correctly identified the misspelled artifact ID (jackson-databin vs jackson-databind) as the cause of dependency resolution failure. |
+| deploy_readiness | 2/2 | 2/2 | The agent correctly identifies the readiness probe failure (/healthz 503) causing rollback, matching the reference cause. |
+| config_missing_env | 2/2 | 2/2 | The agent correctly identified the missing DATABASE_URL and REDIS_HOST environment variables in staging as the root cause, matching the reference. |
+| ambiguous_unknown | 2/2 | 2/2 | The agent correctly identifies that the log lacks sufficient detail to determine a specific cause, matching the reference's core point. |
 
 ## Metric breakdown (vs thresholds)
 
