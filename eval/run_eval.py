@@ -34,6 +34,9 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+from dotenv import load_dotenv
+load_dotenv(os.path.join(ROOT, ".env"))  # so --judge sees ANTHROPIC_API_KEY
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATASET = os.path.join(HERE, "dataset.json")
 RESULTS_MD = os.path.join(HERE, "results.md")
@@ -108,11 +111,22 @@ def get_review(case: dict, cached: bool):
     """
     md = os.path.join(REVIEWS_DIR, f"{case['id']}.md")
     tj = os.path.join(REVIEWS_DIR, f"{case['id']}.tools.json")
+
+    def _load():
+        tools_called = json.load(open(tj)) if os.path.exists(tj) else []
+        return open(md).read(), tools_called
+
     if cached:
         if not os.path.exists(md):
             raise FileNotFoundError(f"no cached review at {md}; run without --cached first")
-        tools_called = json.load(open(tj)) if os.path.exists(tj) else []
-        return open(md).read(), tools_called
+        return _load()
+
+    # Resume: a normal run reuses any review already cached and only calls the
+    # agent for the missing cases, so a quota-limited eval can be filled in over
+    # several runs (add a fresh key, re-run, it picks up where it left off).
+    if os.path.exists(md):
+        print("    (reused cached review - already done)")
+        return _load()
 
     tools_called = []
 
@@ -127,12 +141,16 @@ def get_review(case: dict, cached: bool):
                     args = {}
                 tools_called.append({"name": fc.name, "args": args})
 
-    from agent_runner import run_agent  # imported lazily so --cached needs no ADK
+    from agent_runner import run_agent, _is_complete  # lazy import so --cached needs no ADK
 
     review = run_agent(case["artifacts"], on_event=on_event).get("review", "")
-    os.makedirs(REVIEWS_DIR, exist_ok=True)
-    open(md, "w").write(review)
-    json.dump(tools_called, open(tj, "w"), indent=2)
+    if _is_complete(review):
+        os.makedirs(REVIEWS_DIR, exist_ok=True)
+        open(md, "w").write(review)
+        json.dump(tools_called, open(tj, "w"), indent=2)
+    else:
+        # rate-limited / blank placeholder - don't cache it, so resume retries it
+        print("    (incomplete/rate-limited review - not cached; will retry next run)")
     return review, tools_called
 
 
