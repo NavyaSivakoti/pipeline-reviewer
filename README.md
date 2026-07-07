@@ -88,8 +88,11 @@ cp .env.example .env          # paste your free Gemini key (aistudio.google.com/
 > Free-tier note: ~5 req/min and ~20/day per model; the runner auto-retries 429/503.
 
 ## Evaluation Results
-`eval/run_eval.py` scores the agent against **10 labelled scenarios** on three axes:
-**failure-type**, **security-flag**, and **fix-suggested** accuracy.
+`eval/run_eval.py` scores the agent on **11 labelled scenarios**. Each review is graded
+by **rule-based checks** (failure-type, security-flag, fix-suggested, all sections
+present, no secret leaked) plus an **LLM-as-judge** (root-cause correctness + fix
+quality). These combine into a **weighted composite score (0–1)**; the agent passes if
+the average is **≥ 0.80**.
 
 | Scenario | Expected type | Security flag |
 |----------|---------------|---------------|
@@ -99,16 +102,15 @@ cp .env.example .env          # paste your free Gemini key (aistudio.google.com/
 | Flaky test | flaky | none |
 | Lint-only | lint | none |
 | Docker build (missing build deps) | build | none |
-| Integration test (DB not ready) | test_failure | none |
+| Integration test (DB not ready) | infra | none |
 | Maven/Java dependency (typosquat) | dependency | flag |
 | Deploy readiness probe (rollback) | deploy | none |
 | Config drift (missing env var) | config | none |
+| Ambiguous failure (no clear cause) | unknown | none |
 
-Run `python eval/run_eval.py` → writes `eval/results.md`. *(The free-tier daily cap
-means running the full sweep when quota is fresh; the scoring logic is unit-tested.)*
-Verified live on individual cases — e.g. the typosquat `reqests` was correctly
-flagged as a supply-chain risk with a fix diff, and the `USD≠EUR` bug was correctly
-diagnosed and fixed.
+Run `python eval/run_eval.py --judge` → writes `eval/results.md`. A curated 5-case
+subset runs on every PR; the full 11 run before a release. **See
+[`eval/README.md`](eval/README.md)** for how the evaluation and testing works.
 
 ## Security Guardrails
 - **Secret redaction before model input.** API keys, tokens, passwords, and AWS/GitHub
@@ -116,7 +118,8 @@ diagnosed and fixed.
   the model.**
 - **Proven by tests:** [`tests/test_redaction.py`](tests/test_redaction.py) verifies
   redaction on every model-input path (`redact_secrets`, `read_log`,
-  `parse_junit_results`). Run `pytest` — 14 tests pass (redaction, supply-chain, log handling).
+  `parse_junit_results`). Run `pytest` — 40 tests pass (redaction, supply-chain, log
+  handling, orchestration, tool-trajectory).
 - **Supply-chain awareness:** flags typosquatted / missing packages.
 - **Secrets stay out of git:** the API key lives in `.env` (git-ignored); in CI it's a
   GitHub Actions secret.

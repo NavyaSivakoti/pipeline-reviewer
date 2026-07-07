@@ -96,15 +96,17 @@ the judge's model or rubric.
 
 ## Known limitations (honest caveats)
 
-- **Redaction is pattern-based** - `redact_secrets` catches known secret
-  formats (Google/AWS/GitHub keys, bearer tokens, `password=`). A format not in
-  the pattern list would slip through. It is sampled, not proven.
-- **`check_package` hits the live network during the eval** - PyPI/Maven
-  lookups make that one signal time-dependent (a package's latest version can
-  change; offline runs degrade to "unknown"). The eval resets memory but not the
-  network.
+- **The "no secret leaked" check is sampled, not exhaustive** - it relies on
+  `redact_secrets`, which catches known formats (Google/AWS/GitHub keys, bearer
+  tokens, `password=`). A format not in the pattern list would slip past the
+  check, so a passing eval samples redaction rather than proving it airtight.
+- **The `check_package` signal is time-dependent** - the eval calls PyPI/Maven
+  live, so that one score can shift between runs (a package's latest version can
+  change; offline runs degrade to "unknown"). The eval resets recurrence memory
+  per run but can't freeze the network.
 - **LLM output varies run to run** - results here are a single run. Re-run for
   confidence; a case can flip on wording. (`integration_db` was a borderline
   label - the agent calls it `infra`, which we adopted as the expected type.)
 - **Coverage** - `tools.py` ~92%; the uncovered lines are HTTP-error-code and
   `gh`-nonzero-return branches that aren't worth mocking.
+</content>
