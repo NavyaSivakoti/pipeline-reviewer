@@ -46,6 +46,87 @@ def test_parse_junit_happy_path(tmp_path):
     assert out["failed_tests"][0]["name"] == "test_c"
 
 
+def test_parse_junit_reports_errors_separately(tmp_path):
+    # <error> = the test crashed (setup/fixture/import), not an assertion.
+    # It used to be silently ignored.
+    xml = (
+        '<testsuite name="s">'
+        '<testcase classname="c" name="test_ok"/>'
+        '<testcase classname="c" name="test_db" file="tests/test_db.py" line="12">'
+        '<error type="OperationalError" message="connection refused">'
+        "conftest.py:8: in db\nE OperationalError</error>"
+        "<system-err>could not connect to server</system-err></testcase>"
+        '<testcase classname="c" name="test_skip"><skipped/></testcase>'
+        "</testsuite>"
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(xml)
+    out = tools.parse_junit_results(str(p))
+    assert out["total_tests"] == 3
+    assert out["failures"] == 0
+    assert out["errors"] == 1
+    assert out["skipped"] == 1
+    assert out["passed"] == 1
+    e = out["errored_tests"][0]
+    assert e["name"] == "test_db"
+    assert e["kind"] == "error"
+    assert e["type"] == "OperationalError"
+    assert e["file"] == "tests/test_db.py" and e["line"] == "12"
+    assert "could not connect" in e["stderr_tail"]
+
+
+def test_parse_junit_surefire_flaky(tmp_path):
+    xml = (
+        '<testsuite name="s"><testcase classname="c" name="testRetry">'
+        '<flakyFailure type="java.net.SocketTimeoutException" message="Read timed out">'
+        "trace</flakyFailure></testcase></testsuite>"
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(xml)
+    out = tools.parse_junit_results(str(p))
+    assert out["failures"] == 0
+    assert out["flaky_passed_on_rerun"] == 1
+    assert out["flaky_tests"][0]["kind"] == "flaky"
+
+
+def test_parse_junit_keeps_trace_head_and_tail(tmp_path):
+    trace = "TOP_OF_TRACE\n" + ("x" * 5000) + "\nCaused by: RealRootCause"
+    xml = (
+        '<testsuite><testcase classname="c" name="t">'
+        f'<failure message="m">{trace}</failure></testcase></testsuite>'
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(xml)
+    t = tools.parse_junit_results(str(p))["failed_tests"][0]["trace"]
+    assert "TOP_OF_TRACE" in t and "Caused by: RealRootCause" in t
+    assert len(t) < 1700
+
+
+def test_parse_junit_caps_mass_failures(tmp_path):
+    cases = "".join(
+        f'<testcase classname="c" name="t{i}"><failure message="m"/></testcase>'
+        for i in range(60)
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(f"<testsuite>{cases}</testsuite>")
+    out = tools.parse_junit_results(str(p))
+    assert out["failures"] == 60
+    assert len(out["failed_tests"]) == 25
+    assert "25 of 60" in out["note"]
+
+
+def test_parse_junit_redacts_captured_output(tmp_path):
+    xml = (
+        '<testsuite><testcase classname="c" name="t"><failure message="m"/>'
+        "<system-out>token=ghp_abcdefghijklmnopqrstuvwxyz123</system-out>"
+        "</testcase></testsuite>"
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(xml)
+    out = tools.parse_junit_results(str(p))
+    assert "ghp_" not in json.dumps(out)
+
+
 def test_parse_junit_malformed_xml(tmp_path):
     p = tmp_path / "bad.xml"
     p.write_text("<not valid xml")

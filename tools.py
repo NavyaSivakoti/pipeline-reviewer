@@ -97,8 +97,60 @@ def read_log(file_path: str) -> dict:
 # --------------------------------------------------------------------------
 # JUnit / pytest XML parser (universal across CI tools)
 # --------------------------------------------------------------------------
+_MAX_REPORTED_TESTS = 25   # cap per category so a mass failure can't flood the context
+_TRACE_HEAD, _TRACE_TAIL = 1000, 500
+_OUTPUT_TAIL = 600
+
+
+def _clip_trace(text: str) -> str:
+    """Keep the top of a stack trace (where it failed) AND the bottom (the
+    'Caused by' chain in Java), dropping only the middle."""
+    text = redact_secrets((text or "").strip())
+    if len(text) <= _TRACE_HEAD + _TRACE_TAIL:
+        return text
+    return text[:_TRACE_HEAD] + "\n... (trace trimmed) ...\n" + text[-_TRACE_TAIL:]
+
+
+def _captured_output(case, tag: str) -> str:
+    """Last part of a testcase's <system-out>/<system-err>, redacted."""
+    el = case.find(tag)
+    if el is None or not (el.text or "").strip():
+        return ""
+    return redact_secrets(el.text.strip())[-_OUTPUT_TAIL:]
+
+
+def _problem_entry(case, el, kind: str) -> dict:
+    entry = {
+        "name": case.get("name"),
+        "classname": case.get("classname"),
+        "kind": kind,                       # "failure" | "error" | "flaky"
+        "type": el.get("type") or "",       # e.g. AssertionError, NullPointerException
+        "message": redact_secrets(el.get("message") or ""),
+        "trace": _clip_trace(el.text),
+    }
+    if case.get("file"):
+        entry["file"] = case.get("file")
+    if case.get("line"):
+        entry["line"] = case.get("line")
+    out, err = _captured_output(case, "system-out"), _captured_output(case, "system-err")
+    if out:
+        entry["stdout_tail"] = out
+    if err:
+        entry["stderr_tail"] = err
+    return entry
+
+
 def parse_junit_results(file_path: str) -> dict:
-    """Parse a JUnit/pytest XML report and list the failing tests.
+    """Parse a JUnit/pytest/Surefire XML report and list the problem tests.
+
+    Distinguishes:
+      - failures: an assertion did not hold (<failure>).
+      - errors:   the test crashed before/while running, e.g. an exception in
+                  setup, a fixture, or an import (<error>) — often an
+                  environment or config problem rather than wrong logic.
+      - flaky:    failed at first but passed on rerun (Maven Surefire
+                  <flakyFailure>/<flakyError>).
+      - skipped:  counted, not listed.
 
     Args:
         file_path: path to the JUnit XML results file.
@@ -111,25 +163,46 @@ def parse_junit_results(file_path: str) -> dict:
         return {"error": f"could not parse XML: {e}"}
 
     root = tree.getroot()
-    total = failures = 0
-    failed_tests = []
+    total = failures = errors = skipped = flaky = 0
+    failed_tests, errored_tests, flaky_tests = [], [], []
     for case in root.iter("testcase"):
         total += 1
-        fail = case.find("failure")
+        fail, err = case.find("failure"), case.find("error")
+        flaky_el = case.find("flakyFailure")
+        if flaky_el is None:
+            flaky_el = case.find("flakyError")
         if fail is not None:
             failures += 1
-            failed_tests.append({
-                "name": case.get("name"),
-                "classname": case.get("classname"),
-                "message": redact_secrets(fail.get("message") or ""),
-                "trace": redact_secrets((fail.text or "").strip())[:500],
-            })
-    return {
+            if len(failed_tests) < _MAX_REPORTED_TESTS:
+                failed_tests.append(_problem_entry(case, fail, "failure"))
+        elif err is not None:
+            errors += 1
+            if len(errored_tests) < _MAX_REPORTED_TESTS:
+                errored_tests.append(_problem_entry(case, err, "error"))
+        elif flaky_el is not None:
+            flaky += 1
+            if len(flaky_tests) < _MAX_REPORTED_TESTS:
+                flaky_tests.append(_problem_entry(case, flaky_el, "flaky"))
+        elif case.find("skipped") is not None:
+            skipped += 1
+
+    result = {
         "artifact_type": "junit_results",
         "total_tests": total,
+        "passed": total - failures - errors - skipped,
         "failures": failures,
+        "errors": errors,
+        "skipped": skipped,
+        "flaky_passed_on_rerun": flaky,
         "failed_tests": failed_tests,
+        "errored_tests": errored_tests,
     }
+    if flaky_tests:
+        result["flaky_tests"] = flaky_tests
+    listed = len(failed_tests) + len(errored_tests)
+    if failures + errors > listed:
+        result["note"] = f"showing {listed} of {failures + errors} failing/erroring tests"
+    return result
 
 
 # --------------------------------------------------------------------------
