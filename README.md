@@ -122,11 +122,24 @@ subset runs on every PR; the full 11 run before a release. **See
   `postgres://[REDACTED]@db:5432`) so the evidence stays useful, and masked or empty
   values (`***`, `${{ secrets.X }}`, `""`) are left alone, since an empty secret is
   often the bug. The patterns are bounded so hostile fork-PR logs can't stall them.
-- **Proven by tests:** [`tests/test_redaction.py`](tests/test_redaction.py) verifies
-  redaction on every model-input path (`redact_secrets`, `read_log`,
-  `parse_junit_results`, `fetch_github_actions_log`). Run `pytest` — 78 tests pass
-  (redaction, fingerprints, supply-chain, log handling, orchestration), plus 4
-  tool-trajectory tests that run after an eval.
+- **Prompt-injection guardrails.** Logs, test output and diffs from a fork PR are
+  written by whoever opened it, so they are treated as data, never instructions:
+  - the file tools can read **only the artifacts given for the review**, so a log
+    can't steer the agent into reading `.env` or other files;
+  - pipeline text is wrapped in untrusted-content markers (which the text can't
+    fake), the agent has explicit security rules, and lines that address an AI
+    ("ignore previous instructions…") are flagged so the review reports them;
+  - `gh` arguments are validated, so a value like `--web` can't become a flag;
+  - the posted review is **sanitized** ([`sanitize.py`](sanitize.py)): @mentions
+    are neutralised, images / raw HTML / hidden comments removed, links outside
+    `github.com` defanged (add hosts with `REVIEW_ALLOWED_LINK_HOSTS`), `/commands`
+    neutralised, and secrets redacted again. Code blocks are left intact.
+- **Proven by tests:** [`tests/test_redaction.py`](tests/test_redaction.py),
+  [`tests/test_prompt_injection.py`](tests/test_prompt_injection.py) and
+  [`tests/test_security_hardening.py`](tests/test_security_hardening.py). Run
+  `pytest` — 123 tests pass (redaction, prompt injection, hardening, fingerprints,
+  supply-chain, log handling, orchestration), plus 4 tool-trajectory tests that run
+  after an eval.
 - **Supply-chain awareness:** flags typosquatted / missing packages.
 - **Secrets stay out of git:** the API key lives in `.env` (git-ignored); in CI it's a
   GitHub Actions secret.

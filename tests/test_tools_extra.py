@@ -329,7 +329,8 @@ def test_fetch_gha_redacts_and_respects_budget(monkeypatch):
     monkeypatch.setattr(tools.subprocess, "run", _fake_gh(log_failed="\n".join(lines)))
     out = tools.fetch_github_actions_log("owner/repo", "123")
     assert "ghp_" not in out["log_text"]
-    assert len(out["log_text"].splitlines()) <= 302
+    # 300-line budget + 1 "omitted" marker + 1 header, + 2 untrusted-content fence lines
+    assert len(out["log_text"].splitlines()) <= 304
     assert "### j / step9" in out["log_text"], "the last (failing) step must survive"
 
 

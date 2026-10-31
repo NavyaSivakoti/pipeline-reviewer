@@ -21,6 +21,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
+import tools
 from agent import root_agent
 
 APP = "pipeline_reviewer"
@@ -89,6 +90,20 @@ def _ensure_loop():
 
 
 def run_agent(paths: list[str], on_event=None, max_retries: int = 6, pr_ref: str | None = None) -> dict:
+    # The file tools may read ONLY the artifacts given for this review, so text
+    # in a log can't steer the agent into reading other files (e.g. .env).
+    # (A GitHub run reference like "owner/repo 123" also lands here; harmless.)
+    # The previous setting is restored afterwards so the limit never outlives
+    # this review.
+    previous = tools._ALLOWED_ARTIFACTS
+    tools.set_allowed_artifacts(paths)
+    try:
+        return _run_with_retries(paths, on_event, max_retries, pr_ref)
+    finally:
+        tools._ALLOWED_ARTIFACTS = previous
+
+
+def _run_with_retries(paths, on_event, max_retries, pr_ref) -> dict:
     delay = 10.0
     loop = _ensure_loop()
     for attempt in range(1, max_retries + 1):
