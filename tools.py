@@ -395,21 +395,98 @@ def check_recurrence(signature: str, suggested_fix: str = "") -> dict:
 # --------------------------------------------------------------------------
 # Fetch a run's logs DIRECTLY from GitHub Actions (no local file needed)
 # --------------------------------------------------------------------------
+_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_GHA_TIMESTAMP = re.compile(r"^﻿?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z ?")
+_CONTEXT_BEFORE, _CONTEXT_AFTER = 8, 4   # lines kept around each error line
+_STEP_TAIL = 25                           # last lines of a failed step (exit code lives here)
+_MAX_STEP_LINES = 120
+_MAX_TOTAL_LINES = 300
+
+
+def _gh(args: list, timeout: int = 60):
+    return subprocess.run(["gh", *args], capture_output=True, text=True, timeout=timeout)
+
+
+def _split_gha_line(line: str) -> tuple:
+    """`gh run view --log` prints 'JOB<TAB>STEP<TAB>TIMESTAMP text'. Return
+    (job, step, text) with the timestamp and ANSI colour codes stripped."""
+    parts = line.split("\t", 2)
+    if len(parts) == 3:
+        job, step, text = parts
+    else:
+        job, step, text = "", "", line
+    text = _GHA_TIMESTAMP.sub("", _ANSI.sub("", text))
+    return job.strip(), step.strip(), text
+
+
+def _excerpt(lines: list) -> list:
+    """Windows of context around error lines, plus the step's tail, with
+    gaps marked. The tail matters: the real cause often sits just above
+    'Process completed with exit code N'."""
+    n = len(lines)
+    keep = set(range(max(0, n - _STEP_TAIL), n))
+    for i, ln in enumerate(lines):
+        if _ERROR_LINE.search(ln):
+            keep.update(range(max(0, i - _CONTEXT_BEFORE), min(n, i + _CONTEXT_AFTER + 1)))
+    out, prev = [], -1
+    for i in sorted(keep):
+        if i != prev + 1:
+            out.append(f"... ({i - prev - 1} lines omitted) ...")
+        out.append(lines[i])
+        prev = i
+    if len(out) > _MAX_STEP_LINES:   # keep the end, where the failure surfaces
+        out = [f"... (excerpt trimmed to last {_MAX_STEP_LINES} lines) ..."] + out[-_MAX_STEP_LINES:]
+    return out
+
+
+def _run_metadata(repo: str, run_id: str) -> dict:
+    """Workflow name, branch, commit and which jobs/steps failed. Best-effort."""
+    try:
+        r = _gh(["run", "view", str(run_id), "--repo", repo, "--json",
+                 "workflowName,event,headBranch,headSha,conclusion,jobs"])
+        if r.returncode != 0:
+            return {}
+        data = json.loads(r.stdout)
+    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
+        return {}
+    failed_jobs = []
+    for job in data.get("jobs") or []:
+        if job.get("conclusion") in ("failure", "timed_out", "cancelled"):
+            failed_jobs.append({
+                "job": job.get("name"),
+                "conclusion": job.get("conclusion"),
+                "failed_steps": [s.get("name") for s in job.get("steps") or []
+                                 if s.get("conclusion") in ("failure", "timed_out")],
+            })
+    return {
+        "workflow": data.get("workflowName"),
+        "event": data.get("event"),
+        "branch": data.get("headBranch"),
+        "commit": (data.get("headSha") or "")[:12],
+        "conclusion": data.get("conclusion"),
+        "failed_jobs": failed_jobs,
+    }
+
+
 def fetch_github_actions_log(repo: str, run_id: str) -> dict:
     """Fetch a failed GitHub Actions run's logs directly, via the gh CLI.
 
-    Lets the agent review a run WITHOUT downloading a file first. Secrets are
-    redacted; output is trimmed to the error/failure lines.
+    Lets the agent review a run WITHOUT downloading a file first. Pulls only
+    the FAILED steps (`--log-failed`, falling back to the full log), groups the
+    output by job and step, and keeps context around each error plus the end
+    of each failed step. Also returns run metadata (workflow, branch, commit,
+    which jobs/steps failed). Secrets are redacted.
 
     Args:
         repo: 'owner/repo' (e.g. 'NavyaSivakoti/demo-app').
         run_id: the numeric run id.
     """
+    source = "failed_steps"
     try:
-        out = subprocess.run(
-            ["gh", "run", "view", str(run_id), "--repo", repo, "--log"],
-            capture_output=True, text=True, timeout=60,
-        )
+        out = _gh(["run", "view", str(run_id), "--repo", repo, "--log-failed"])
+        if out.returncode != 0 or not out.stdout.strip():
+            source = "full_log"
+            out = _gh(["run", "view", str(run_id), "--repo", repo, "--log"])
     except FileNotFoundError:
         return {"error": "gh CLI not available in this environment"}
     except subprocess.TimeoutExpired:
@@ -417,17 +494,41 @@ def fetch_github_actions_log(repo: str, run_id: str) -> dict:
     if out.returncode != 0:
         return {"error": f"gh failed: {out.stderr[:200]}"}
 
-    text = redact_secrets(out.stdout)
-    lines = text.splitlines()
-    important = [ln for ln in lines if _ERROR_LINE.search(ln)]
-    shown = important[:80] or lines[-80:]
-    return {
+    raw_lines = redact_secrets(out.stdout).splitlines()
+    steps: dict = {}   # (job, step) -> lines, in log order
+    for line in raw_lines:
+        job, step, text = _split_gha_line(line)
+        steps.setdefault((job, step), []).append(text)
+
+    failed_steps, rendered, budget = [], [], _MAX_TOTAL_LINES
+    for (job, step), lines in steps.items():
+        excerpt = _excerpt(lines)
+        failed_steps.append({"job": job, "step": step, "line_count": len(lines)})
+        header = f"### {job} / {step}" if (job or step) else "### log"
+        rendered.append((header, excerpt))
+    # Fill the line budget from the LAST step backwards: the failure is usually last.
+    out_lines = []
+    for header, excerpt in reversed(rendered):
+        if budget <= 0:
+            out_lines.insert(0, "... (earlier steps omitted to fit the budget) ...")
+            break
+        block = [header] + excerpt[-budget:]
+        budget -= len(block)
+        out_lines = block + out_lines
+
+    result = {
         "artifact_type": "github_actions_log",
         "repo": repo,
         "run_id": str(run_id),
-        "line_count": len(lines),
-        "log_text": "\n".join(shown[:120]),
+        "source": source,
+        "line_count": len(raw_lines),
+        "steps": failed_steps,
+        "log_text": "\n".join(out_lines),
     }
+    meta = _run_metadata(repo, run_id)
+    if meta:
+        result["run"] = meta
+    return result
 
 
 # --------------------------------------------------------------------------
