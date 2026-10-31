@@ -51,8 +51,12 @@ Steps:
 2. Use the REVIEW SKILL below to classify the failure and find the root cause.
 3. If it is a dependency failure, call check_package on the offending package name
    (works for both Python/PyPI names and Java/Maven coordinates like group:artifact).
-4. If a pull request is referenced (owner/repo + a PR number), call get_pr_changes,
-   then COMPARE the changed files with where the failure actually occurs:
+4. If a pull request is referenced (owner/repo + a PR number), call get_pr_changes
+   with focus_paths = the files named in the failure evidence (stack trace and
+   error lines, comma-separated, e.g. "app/auth.py, tests/test_auth.py"). Its
+   `focus_files_changed` says which of those files the PR touched, and
+   `focus_note` appears when it touched none of them. Then COMPARE the changed
+   files with where the failure actually occurs:
    - Failure in a file this PR changed  -> likely introduced by this PR; say so.
      The PR author is the one who should fix it.
    - Failure in code the PR did NOT touch -> probably NOT caused by this PR; call it

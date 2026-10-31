@@ -1004,41 +1004,194 @@ def fetch_github_actions_log(repo: str, run_id: str) -> dict:
 # --------------------------------------------------------------------------
 # Inspect the files changed in a PR — tie the failure to the actual change
 # --------------------------------------------------------------------------
-def get_pr_changes(repo: str, pr_number: str) -> dict:
-    """List the files changed in a pull request (and a trimmed diff), so the
+_PR_FILES_PER_PAGE = 100
+_PR_MAX_PAGES = 30            # GitHub lists at most 3,000 files per PR
+_PR_DIFF_BUDGET = 400         # total diff lines returned
+_PR_FILE_CAP = 120            # diff lines per file
+_PR_FOCUS_FILE_CAP = 200      # ...per file the failure points at
+_PR_LISTED_FILES = 100
+
+# Files that usually explain a CI failure even when no stack trace names them.
+_BUILD_FILE = re.compile(
+    r"(?:^|/)(?:requirements[^/]*\.txt|pyproject\.toml|setup\.(?:py|cfg)|Pipfile|"
+    r"package\.json|pom\.xml|build\.gradle(?:\.kts)?|settings\.gradle(?:\.kts)?|go\.mod|"
+    r"Gemfile|Cargo\.toml|Dockerfile[^/]*|docker-compose[^/]*\.ya?ml|Makefile|Jenkinsfile|"
+    r"\.github/workflows/[^/]+\.ya?ml|\.gitlab-ci\.yml|tox\.ini|pytest\.ini|conftest\.py|"
+    r"[^/]*\.tf|Chart\.yaml|values[^/]*\.ya?ml)$", re.I)
+_CODE_FILE = re.compile(
+    r"\.(?:py|java|kt|kts|scala|groovy|js|jsx|ts|tsx|go|rb|cs|c|cc|cpp|h|hpp|rs|php|swift|"
+    r"sh|ps1|sql|ya?ml|json|xml|toml|ini|cfg|properties)$", re.I)
+# Large or machine-written: can still explain a failure (a transitive version
+# bump in a lockfile), so diffed after code but before docs.
+_GENERATED_FILE = re.compile(
+    r"(?:^|/)(?:package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Pipfile\.lock|"
+    r"Gemfile\.lock|Cargo\.lock|go\.sum|composer\.lock)$|\.(?:min\.js|min\.css|map|snap|lock)$|"
+    r"(?:^|/)(?:vendor|node_modules|dist|build|generated|__snapshots__)/", re.I)
+# Docs and assets: least likely to break a build, diffed last.
+_DOCS_FILE = re.compile(r"\.(?:md|rst|txt|adoc|svg|png|jpe?g|gif|ico|pdf|webp)$", re.I)
+
+
+_PATH_TOKEN = re.compile(r"[\w.\-/\\]{1,300}\.[A-Za-z][\w]{0,9}")
+_WORKSPACE_PREFIX = re.compile(
+    r"^(?:/home/runner/work/[^/]+/[^/]+/|/github/workspace/|/var/lib/jenkins/workspace/[^/]+/|"
+    r"/builds/[^/]+/[^/]+/|[a-z]:/actions-runner/_work/[^/]+/[^/]+/)", re.I)
+
+
+def _focus_terms(focus_paths: str) -> list:
+    """File paths the failure points at, pulled out of whatever the agent passes:
+    plain paths, 'file.py:12', 'File "/home/runner/work/r/r/app/x.py", line 3',
+    or Java 'at com.x.Foo.bar(Foo.java:58)'."""
+    terms = []
+    for tok in _PATH_TOKEN.findall(str(focus_paths or "")[:2000]):
+        t = tok.replace("\\", "/").lower()
+        t = _WORKSPACE_PREFIX.sub("", t)
+        t = re.sub(r"^(?:\./|[ab]/)", "", t)        # ./x or diff-style a/x, b/x
+        if len(t) >= 3 and t not in terms:
+            terms.append(t)
+        if len(terms) >= 20:
+            break
+    return terms
+
+
+def _matches_focus(path: str, terms: list) -> bool:
+    p = path.lower()
+    base = p.rsplit("/", 1)[-1]
+    for t in terms:
+        if "/" in t:   # a path: compare by suffix, either way round
+            if p == t or p.endswith("/" + t) or t.endswith("/" + p):
+                return True
+        elif base == t:   # a bare filename, e.g. LoginTest.java from a Java trace
+            return True
+    return False
+
+
+def _file_rank(path: str, focused: bool) -> int:
+    if focused:
+        return 0
+    if _BUILD_FILE.search(path):       # requirements*.txt is caught here, before docs
+        return 1
+    if _GENERATED_FILE.search(path):
+        return 4
+    if _DOCS_FILE.search(path):
+        return 5
+    if _CODE_FILE.search(path):
+        return 2
+    return 3
+
+
+def _fetch_pr_files(repo: str, pr_number: str):
+    """All changed files of a PR via the REST API. Returns (files, error)."""
+    files = []
+    for page in range(1, _PR_MAX_PAGES + 1):
+        r = _gh(["api", "-H", "Accept: application/vnd.github+json",
+                 f"repos/{repo}/pulls/{pr_number}/files?per_page={_PR_FILES_PER_PAGE}&page={page}"])
+        if r.returncode != 0:
+            return files, f"gh failed: {r.stderr[:200]}"
+        try:
+            batch = json.loads(r.stdout or "[]")
+        except ValueError:
+            return files, "gh returned invalid JSON"
+        if not isinstance(batch, list):
+            return files, "unexpected response from the GitHub API"
+        files.extend(f for f in batch if isinstance(f, dict))
+        if len(batch) < _PR_FILES_PER_PAGE:
+            break
+    return files, None
+
+
+def get_pr_changes(repo: str, pr_number: str, focus_paths: str = "") -> dict:
+    """List the files changed in a pull request and show their diffs, so the
     review can tie the failure to the specific code change that caused it.
+
+    Diffs are fetched per file and budgeted, so a large PR doesn't hide the
+    file that matters: files named in `focus_paths` come first (and get more
+    room), then build/dependency/CI files (requirements, pom.xml, Dockerfile,
+    workflows, ...), then other code, and lockfiles / generated files last.
+    Every changed file is listed with its status and +/- line counts, even
+    when its diff is not shown.
 
     Args:
         repo: 'owner/repo' (e.g. 'NavyaSivakoti/demo-app').
         pr_number: the pull-request number.
+        focus_paths: comma-separated files the failure points at (from the stack
+            trace / error lines), e.g. "app/auth.py, tests/test_auth.py:6".
     """
     bad = _bad_gh_args(repo, pr_number, "PR number")
     if bad:
         return {"error": bad}
     try:
-        names = subprocess.run(
-            ["gh", "pr", "diff", str(pr_number), "--repo", repo, "--name-only"],
-            capture_output=True, text=True, timeout=60,
-        )
-        diff = subprocess.run(
-            ["gh", "pr", "diff", str(pr_number), "--repo", repo],
-            capture_output=True, text=True, timeout=60,
-        )
+        files, err = _fetch_pr_files(repo, str(pr_number))
     except FileNotFoundError:
         return {"error": "gh CLI not available in this environment"}
     except subprocess.TimeoutExpired:
         return {"error": "gh timed out"}
-    if names.returncode != 0:
-        return {"error": f"gh failed: {names.stderr[:200]}"}
+    if err and not files:
+        return {"error": err}
 
-    changed = [f for f in names.stdout.splitlines() if f.strip()]
-    diff_lines = redact_secrets(diff.stdout).splitlines()
-    if len(diff_lines) > 150:
-        diff_lines = diff_lines[:150] + [f"... ({len(diff_lines) - 150} more diff lines) ..."]
-    return {
+    terms = _focus_terms(focus_paths)
+    entries = []
+    for idx, f in enumerate(files):
+        path = str(f.get("filename") or "")
+        if not path:
+            continue
+        focused = bool(terms) and _matches_focus(path, terms)
+        entries.append({
+            "path": path,
+            "status": str(f.get("status") or ""),
+            "additions": int(f.get("additions") or 0),
+            "deletions": int(f.get("deletions") or 0),
+            "previous_path": f.get("previous_filename"),
+            "patch": f.get("patch"),
+            "focus": focused,
+            "_rank": (_file_rank(path, focused), idx),
+        })
+
+    budget, blocks, shown, omitted = _PR_DIFF_BUDGET, [], [], []
+    for e in sorted(entries, key=lambda e: e["_rank"]):
+        stats = f"{e['status']}, +{e['additions']} -{e['deletions']}"
+        if e["previous_path"]:
+            stats += f", renamed from {e['previous_path']}"
+        if not e["patch"]:
+            omitted.append(f"{e['path']} ({stats}; no diff from GitHub: binary or too large)")
+            continue
+        if budget <= 0:
+            omitted.append(f"{e['path']} ({stats}; diff budget used up)")
+            continue
+        patch = redact_secrets(str(e["patch"])).splitlines()
+        cap = min(_PR_FOCUS_FILE_CAP if e["focus"] else _PR_FILE_CAP, budget)
+        body = patch[:cap]
+        if len(patch) > cap:
+            body.append(f"... ({len(patch) - cap} more diff lines in this file) ...")
+        marker = "  [named in the failure]" if e["focus"] else ""
+        blocks.append(f"### {e['path']} ({stats}){marker}\n" + "\n".join(body))
+        shown.append(e["path"])
+        budget -= len(body) + 1
+
+    diff_text = "\n\n".join(blocks)
+    result = {
         "repo": repo,
         "pr_number": str(pr_number),
-        "changed_files": changed[:50],
-        "diff": _fence_untrusted("\n".join(diff_lines)),
+        "total_files": len(entries),
+        "total_additions": sum(e["additions"] for e in entries),
+        "total_deletions": sum(e["deletions"] for e in entries),
+        "changed_files": [e["path"] for e in entries][:_PR_LISTED_FILES],
+        "files": [{k: e[k] for k in ("path", "status", "additions", "deletions", "focus")}
+                  for e in entries][:_PR_LISTED_FILES],
+        "focus_files_changed": [e["path"] for e in entries if e["focus"]],
+        "diff_shown_for": shown,
+        "diff": _fence_untrusted(diff_text),
         "untrusted_content": _UNTRUSTED_NOTE,
     }
+    if terms and not result["focus_files_changed"]:
+        result["focus_note"] = ("none of the files named in the failure were changed by this "
+                                "PR: the failure may be pre-existing, flaky, or environmental")
+    if omitted:
+        result["diff_omitted_for"] = omitted[:50]
+    if len(entries) > _PR_LISTED_FILES:
+        result["note"] = f"listing {_PR_LISTED_FILES} of {len(entries)} changed files"
+    if err:
+        result["partial"] = f"file list may be incomplete: {err}"
+    suspicious = _suspicious_lines([diff_text])
+    if suspicious:
+        result["suspicious_instructions"] = suspicious
+    return result

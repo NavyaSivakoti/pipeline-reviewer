@@ -187,10 +187,13 @@ def test_check_package_offline_degrades(monkeypatch):
 # get_pr_changes - subprocess (gh) mocked
 # --------------------------------------------------------------------------
 def test_get_pr_changes_parses_files(monkeypatch):
+    files = [
+        {"filename": "app/foo.py", "status": "modified", "additions": 1, "deletions": 0, "patch": "@@ -1 +1 @@\n+x"},
+        {"filename": "app/bar.py", "status": "added", "additions": 3, "deletions": 0, "patch": "@@ -0,0 +1 @@\n+y"},
+    ]
+
     def fake_run(cmd, **kw):
-        if "--name-only" in cmd:
-            return types.SimpleNamespace(returncode=0, stdout="app/foo.py\napp/bar.py\n", stderr="")
-        return types.SimpleNamespace(returncode=0, stdout="diff --git a/app/foo.py b/app/foo.py\n+x", stderr="")
+        return types.SimpleNamespace(returncode=0, stdout=json.dumps(files), stderr="")
 
     monkeypatch.setattr(tools.subprocess, "run", fake_run)
     out = tools.get_pr_changes("owner/repo", "1")

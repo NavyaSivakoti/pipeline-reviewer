@@ -48,8 +48,9 @@ def build_message(paths: list[str], pr_ref: str | None = None) -> str:
         repo, _, num = pr_ref.partition("#")
         msg += (
             f"\n\nThis failure occurred on pull request #{num} of {repo}. "
-            f'Call get_pr_changes with repo="{repo}" and pr_number="{num}" to see the '
-            "files this PR changed, then state whether the failure is in code this PR "
+            f'After reading the evidence, call get_pr_changes with repo="{repo}", '
+            f'pr_number="{num}" and focus_paths set to the files named in the failure, '
+            "then state whether the failure is in code this PR "
             "changed (likely introduced by it) or in code it did not touch (likely "
             "pre-existing, flaky, or environmental)."
         )
