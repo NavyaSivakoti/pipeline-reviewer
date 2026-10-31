@@ -60,38 +60,129 @@ _ERROR_LINE = re.compile(
 )
 
 
+# High-confidence failure markers across CI tools and languages. A line that
+# matches one of these is almost certainly part of the failure.
+_STRONG_ERROR = re.compile(
+    r"##\[error\]|^\s*E\s{2,}|^FAILED\b|\bFAILED\s+\S+::|Traceback \(most recent call last\)|"
+    r"^\s*Caused by:|\[ERROR\]|BUILD FAILURE|BUILD FAILED|npm ERR!|^\s*fatal:|"
+    r"\bexit(?:ed with)? code [1-9]\d*|returned a non-zero code|"
+    r"\b\w+(?:Error|Exception)\b:|\berror(?:\[\w+\])?:|ERROR:|"
+    r"^Killed$|out of memory|OOMKilled|segmentation fault|core dumped|"
+    r"cannot find symbol|no module named|connection refused|"
+    r"ImagePullBackOff|CrashLoopBackOff|"
+    r"Execution failed for task|\bTask :\S+ FAILED|could not (?:find|resolve)\b|"
+    r"^Finished: FAILURE|<<< (?:FAILURE|ERROR)!",
+    re.I | re.M,
+)
+
+# Lines that contain an error word but report success or name a file/flag.
+_FALSE_POSITIVE = re.compile(
+    r"\b(?:0|no) (?:errors?|failures?|failed|tests? failed)\b|"
+    r"\b(?:errors?|failures?|failed)\s*[:=]\s*0\b|"
+    r"\b\w*(?:error|fail)\w*\.(?:py|java|js|ts|go|rb|kt|cs)\b|"
+    r"continue-on-error|fail-fast|ignore[-_]errors|--fail-on|-Werror|"
+    r"\bpassed\b.*\b0 failed\b",
+    re.I,
+)
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_LEADING_TIMESTAMP = re.compile(
+    r"^﻿?(?:\[?\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?\]?) ?"
+)
+
+
+def _clean_line(line: str) -> str:
+    return _LEADING_TIMESTAMP.sub("", _ANSI.sub("", line))
+
+
+def _error_strength(line: str) -> int:
+    """2 = strong failure marker, 1 = weak hint (an error-ish word), 0 = none."""
+    if _FALSE_POSITIVE.search(line):
+        return 0
+    if _STRONG_ERROR.search(line):
+        return 2
+    if _ERROR_LINE.search(line):
+        return 1
+    return 0
+
+
+_LOG_LIMIT = 200          # logs at or under this many lines are returned whole
+_LOG_HEAD = 10            # first lines (tool / runner versions)
+_LOG_TAIL = 60            # last lines (the final failure + exit code)
+_WIN_BEFORE, _WIN_AFTER = 6, 3
+_LOG_BUDGET = 260         # max lines returned for a long log
+_FIRST_ERRORS = 5         # earliest strong errors always kept (root cause of cascades)
+
+
+def _select_log_lines(lines: list) -> tuple:
+    """Pick which lines of a long log to keep. Returns (kept_indices, stats)."""
+    n = len(lines)
+    strengths = [_error_strength(ln) for ln in lines]
+    strong = [i for i, s in enumerate(strengths) if s == 2]
+    weak = [i for i, s in enumerate(strengths) if s == 1]
+    hits = strong or weak   # fall back to weak hints only if nothing strong
+
+    keep = set(range(min(_LOG_HEAD, n))) | set(range(max(0, n - _LOG_TAIL), n))
+
+    def window(i):
+        return set(range(max(0, i - _WIN_BEFORE), min(n, i + _WIN_AFTER + 1)))
+
+    # The earliest errors usually hold the root cause (later ones cascade);
+    # after those, add windows from the END backwards until the budget is spent.
+    order = hits[:_FIRST_ERRORS] + list(reversed(hits[_FIRST_ERRORS:]))
+    for i in order:
+        w = window(i)
+        if len(keep | w) > _LOG_BUDGET:
+            continue
+        keep |= w
+    return keep, {"strong_error_lines": len(strong), "weak_error_lines": len(weak)}
+
+
+def _render(lines: list, keep: set) -> list:
+    out, prev = [], -1
+    for i in sorted(keep):
+        if i != prev + 1:
+            out.append(f"... ({i - prev - 1} lines omitted) ...")
+        out.append(lines[i])
+        prev = i
+    if prev < len(lines) - 1:
+        out.append(f"... ({len(lines) - 1 - prev} lines omitted) ...")
+    return out
+
+
 def read_log(file_path: str) -> dict:
     """Read any CI/CD or build/console log and return its redacted text.
 
-    Use for any non-XML log from any CI tool. Secrets are stripped first. Long
-    logs are trimmed to the first 120 + last 80 lines, but any error/failure
-    lines from the omitted middle are ALSO surfaced, so a mid-log root cause is
-    never dropped just because of where it appears.
+    Use for any non-XML log from any CI tool. Secrets are stripped first, along
+    with ANSI colour codes and leading timestamps. Logs over 200 lines are
+    excerpted: the first 10 lines, the last 60, and a window of context around
+    each real error line (strong markers like '##[error]', 'Traceback',
+    'BUILD FAILURE', 'Caused by:'; weak hints only if there are no strong
+    ones). Lines like '0 errors' or 'error_handler.py' are not treated as
+    errors. The earliest errors are always kept, since later ones often cascade
+    from the first.
 
     Args:
         file_path: path to the log / console-output file.
     """
     try:
-        with open(_resolve(file_path)) as f:
+        with open(_resolve(file_path), errors="replace") as f:
             raw = f.read()
     except FileNotFoundError:
         return {"error": f"log file not found: {file_path}"}
 
-    text = redact_secrets(raw)
-    lines = text.splitlines()
+    lines = [_clean_line(ln) for ln in redact_secrets(raw).splitlines()]
     total = len(lines)
-    if total > 200:
-        head, tail, middle = lines[:120], lines[-80:], lines[120:total - 80]
-        errors = [ln for ln in middle if _ERROR_LINE.search(ln)]
-        if errors:
-            lines = (head
-                     + [f"... ({len(middle)} lines omitted; {len(errors)} error line(s) surfaced) ..."]
-                     + errors[:40]
-                     + ["..."]
-                     + tail)
-        else:
-            lines = head + [f"... ({len(middle)} lines omitted) ..."] + tail
-    return {"artifact_type": "raw_log", "line_count": total, "log_text": "\n".join(lines)}
+    result = {"artifact_type": "raw_log", "line_count": total}
+    if total <= _LOG_LIMIT:
+        result["log_text"] = "\n".join(lines)
+        return result
+
+    keep, stats = _select_log_lines(lines)
+    result.update(stats)
+    result["lines_shown"] = len(keep)
+    result["log_text"] = "\n".join(_render(lines, keep))
+    return result
 
 
 # --------------------------------------------------------------------------
@@ -395,8 +486,6 @@ def check_recurrence(signature: str, suggested_fix: str = "") -> dict:
 # --------------------------------------------------------------------------
 # Fetch a run's logs DIRECTLY from GitHub Actions (no local file needed)
 # --------------------------------------------------------------------------
-_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
-_GHA_TIMESTAMP = re.compile(r"^﻿?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z ?")
 _CONTEXT_BEFORE, _CONTEXT_AFTER = 8, 4   # lines kept around each error line
 _STEP_TAIL = 25                           # last lines of a failed step (exit code lives here)
 _MAX_STEP_LINES = 120
@@ -415,8 +504,7 @@ def _split_gha_line(line: str) -> tuple:
         job, step, text = parts
     else:
         job, step, text = "", "", line
-    text = _GHA_TIMESTAMP.sub("", _ANSI.sub("", text))
-    return job.strip(), step.strip(), text
+    return job.strip(), step.strip(), _clean_line(text)
 
 
 def _excerpt(lines: list) -> list:
@@ -425,8 +513,10 @@ def _excerpt(lines: list) -> list:
     'Process completed with exit code N'."""
     n = len(lines)
     keep = set(range(max(0, n - _STEP_TAIL), n))
-    for i, ln in enumerate(lines):
-        if _ERROR_LINE.search(ln):
+    strengths = [_error_strength(ln) for ln in lines]
+    best = 2 if 2 in strengths else 1   # weak hints only when nothing is strong
+    for i, s in enumerate(strengths):
+        if s == best:
             keep.update(range(max(0, i - _CONTEXT_BEFORE), min(n, i + _CONTEXT_AFTER + 1)))
     out, prev = [], -1
     for i in sorted(keep):
