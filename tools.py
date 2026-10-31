@@ -7,6 +7,7 @@ in code; the LLM does the reasoning. `check_package` reaches LIVE data
 """
 
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -17,7 +18,9 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-MEMORY_FILE = os.path.join(BASE, "memory", "failures.json")
+# Point this at a path your CI caches (e.g. with actions/cache) so recurrence
+# memory survives between runs instead of starting empty on every checkout.
+MEMORY_FILE = os.environ.get("PIPELINE_REVIEWER_MEMORY") or os.path.join(BASE, "memory", "failures.json")
 
 
 def _resolve(path: str) -> str:
@@ -106,6 +109,80 @@ def _error_strength(line: str) -> int:
     return 0
 
 
+# --------------------------------------------------------------------------
+# Failure fingerprint — a stable ID for "the same failure", computed in code
+# --------------------------------------------------------------------------
+# Lines that say THAT something failed but not WHAT failed. Every failure has
+# them, so they must not be part of the fingerprint or unrelated failures
+# would collide.
+_GENERIC_FAILURE = re.compile(
+    r"exit(?:ed)?(?: with)? code|returned a non-zero|build (?:failure|failed)|"
+    r"^\W*failures?\W*$|=+\s*failures\s*=+|^_+\s*\S+\s*_+$|\b(?:\d+|n) (?:failed|errors?)\b|"
+    r"finished: failure|job failed|step\b.*\bfailed|\bskipped\b|"
+    r"failure: build failed with an exception|^\W*$|"
+    # Gradle wrapper lines: identical for every Gradle failure.
+    r"execution failed for task|task :\S+ failed|could not resolve all (?:files|dependencies)|"
+    r"what went wrong",
+    re.I,
+)
+_NORMALIZERS = [
+    (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I), "<uuid>"),
+    (re.compile(r"\b0x[0-9a-f]+\b", re.I), "<hex>"),
+    (re.compile(r"\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,64}\b", re.I), "<hex>"),
+    (re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b"), "<ip>"),
+    (re.compile(r"(?:/tmp|/var/folders|/private/var)/\S*"), "<tmp>"),
+    # CI workspace prefixes, so the same file matches across runners and CI systems.
+    (re.compile(r"/home/runner/work/[^/\s]+/[^/\s]+/"), ""),            # GitHub Actions
+    (re.compile(r"/github/workspace/"), ""),                            # GHA container jobs
+    (re.compile(r"/var/lib/jenkins/workspace/[^/\s]+/"), ""),           # Jenkins
+    (re.compile(r"/builds/[^/\s]+/[^/\s]+/"), ""),                      # GitLab
+    (re.compile(r"[a-z]:\\actions-runner\\_work\\[^\\\s]+\\[^\\\s]+\\", re.I), ""),  # Windows runner
+    (re.compile(r"\b\d+(?:\.\d+)?\s?(?:ms|s|sec|seconds|m|min)\b"), "<dur>"),
+    (re.compile(r":\d+"), ":N"),                       # file:line:col
+    # Other standalone numbers -> N, but keep HTTP-style status codes (401 vs
+    # 500 are different failures) and rule codes like F401 (no word boundary).
+    (re.compile(r"\b(?![1-5]\d\d\b)\d+\b"), "N"),
+    # Log-level / pytest prefixes, possibly stacked ("[ERROR] E   ...").
+    (re.compile(r"^\s*(?:(?:##\[error\]|\[error\]|error:|e\s{2,})\s*)+", re.I), ""),
+    (re.compile(r"\s+"), " "),
+]
+
+
+def _normalize_error(line: str) -> str:
+    """Strip the parts of an error line that change between runs (timestamps,
+    numbers, hashes, temp paths, runner workspace paths, durations) so the same
+    failure produces the same text every time."""
+    text = _clean_line(line).strip().lower()
+    for pat, repl in _NORMALIZERS:
+        text = pat.sub(repl, text)
+    return text.strip()
+
+
+def _fingerprint(basis: list) -> str:
+    joined = "\n".join(basis).encode()
+    return hashlib.sha1(joined).hexdigest()[:12] if basis else ""
+
+
+def _log_fingerprint(lines: list, max_lines: int = 3) -> tuple:
+    """Fingerprint a log from its first specific error lines. Returns
+    (fingerprint, basis) where basis is the normalized lines that were hashed."""
+    for wanted in (2, 1):   # strong errors first, weak hints as a fallback
+        basis = []
+        for ln in lines:
+            if _error_strength(ln) != wanted:
+                continue
+            norm = _normalize_error(ln)
+            if _GENERIC_FAILURE.search(norm):
+                continue
+            if len(norm) >= 8 and norm not in basis:
+                basis.append(norm)
+            if len(basis) == max_lines:
+                break
+        if basis:
+            return _fingerprint(basis), basis
+    return "", []
+
+
 _LOG_LIMIT = 200          # logs at or under this many lines are returned whole
 _LOG_HEAD = 10            # first lines (tool / runner versions)
 _LOG_TAIL = 60            # last lines (the final failure + exit code)
@@ -173,7 +250,9 @@ def read_log(file_path: str) -> dict:
 
     lines = [_clean_line(ln) for ln in redact_secrets(raw).splitlines()]
     total = len(lines)
-    result = {"artifact_type": "raw_log", "line_count": total}
+    fp, basis = _log_fingerprint(lines)
+    result = {"artifact_type": "raw_log", "line_count": total,
+              "fingerprint": fp, "fingerprint_basis": basis}
     if total <= _LOG_LIMIT:
         result["log_text"] = "\n".join(lines)
         return result
@@ -229,6 +308,17 @@ def _problem_entry(case, el, kind: str) -> dict:
     if err:
         entry["stderr_tail"] = err
     return entry
+
+
+_EXC_NAME = re.compile(r"\b([A-Za-z_][\w.]*(?:Error|Exception|Failure))\b")
+
+
+def _exception_type(test: dict) -> str:
+    """The exception class: the `type` attribute, or parsed from the message."""
+    if test.get("type"):
+        return test["type"].rsplit(".", 1)[-1]
+    m = _EXC_NAME.search(test.get("message") or "")
+    return m.group(1).rsplit(".", 1)[-1] if m else ""
 
 
 def parse_junit_results(file_path: str) -> dict:
@@ -290,6 +380,14 @@ def parse_junit_results(file_path: str) -> dict:
     }
     if flaky_tests:
         result["flaky_tests"] = flaky_tests
+    # Fingerprint = which tests broke and with what exception type. Flaky
+    # (passed-on-rerun) tests are left out: they are not the failure.
+    basis = sorted({
+        f"{t['classname']}::{t['name']}|{_exception_type(t)}".lower()
+        for t in failed_tests + errored_tests
+    })
+    result["fingerprint"] = _fingerprint(basis)
+    result["fingerprint_basis"] = basis
     listed = len(failed_tests) + len(errored_tests)
     if failures + errors > listed:
         result["note"] = f"showing {listed} of {failures + errors} failing/erroring tests"
@@ -441,39 +539,73 @@ def _avg_interval_str(occurrences: list) -> str:
     return f"~{avg / 86400:.1f} days between occurrences"
 
 
-def check_recurrence(signature: str, suggested_fix: str = "") -> dict:
+_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{12}$")
+_MAX_OCCURRENCES = 50   # per failure; older timestamps are dropped
+
+
+def _load_store() -> dict:
+    try:
+        with open(MEMORY_FILE) as f:
+            store = json.load(f)
+        return store if isinstance(store, dict) else {}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_store(store: dict) -> None:
+    """Write atomically, so a crash or a parallel job can't leave half a file."""
+    os.makedirs(os.path.dirname(os.path.abspath(MEMORY_FILE)), exist_ok=True)
+    tmp = f"{MEMORY_FILE}.{os.getpid()}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(store, f, indent=2)
+    os.replace(tmp, MEMORY_FILE)
+
+
+def check_recurrence(signature: str, suggested_fix: str = "", fingerprint: str = "") -> dict:
     """Record this failure and report how often it has happened before, plus the
     fix suggested LAST time. This is the agent's persistent memory across runs,
     so a recurring failure is recognised.
 
-    Args:
-        signature: a short STABLE identifier (failing test name, or
-            "dependency: <package>"). Must be the same each time the failure recurs.
-        suggested_fix: the fix you are proposing now (stored for next time).
-    """
-    os.makedirs(os.path.dirname(MEMORY_FILE), exist_ok=True)
-    try:
-        store = json.load(open(MEMORY_FILE))
-    except (FileNotFoundError, json.JSONDecodeError):
-        store = {}
+    Pass the `fingerprint` returned by read_log / parse_junit_results /
+    fetch_github_actions_log whenever there is one: it is computed in code from
+    the normalized error text, so the same failure always gets the same ID no
+    matter how it is described. `signature` is then only a human-readable label.
 
-    key = re.sub(r"\s+", " ", signature.strip().lower())[:200]
+    Args:
+        signature: a short label for the failure (failing test name, or
+            "dependency: <package>"). Used as the key only when no fingerprint.
+        suggested_fix: the fix you are proposing now (stored for next time).
+        fingerprint: the 12-character fingerprint from the evidence tool.
+    """
+    fp = (fingerprint or "").strip().lower()
+    label = re.sub(r"\s+", " ", signature.strip().lower())[:200]
+    if _FINGERPRINT_RE.match(fp):
+        key, matched_by = f"fp:{fp}", "fingerprint"
+    else:
+        # No (valid) fingerprint: fall back to the label. Same key format as
+        # before, so existing memory files keep working.
+        key, matched_by = label, "signature"
+
+    store = _load_store()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     entry = store.get(key, {"count": 0, "first_seen": now, "occurrences": [], "last_fix": ""})
 
     times_before = entry["count"]
     previous_fix = entry.get("last_fix", "")
+    previous_label = entry.get("label", "")
 
     entry["count"] += 1
     entry["last_seen"] = now
-    entry.setdefault("occurrences", []).append(now)
+    entry["label"] = label
+    entry["occurrences"] = (entry.get("occurrences", []) + [now])[-_MAX_OCCURRENCES:]
     if suggested_fix:
         entry["last_fix"] = suggested_fix.strip()[:300]
     store[key] = entry
-    json.dump(store, open(MEMORY_FILE, "w"), indent=2)
+    _save_store(store)
 
-    return {
-        "signature": key,
+    result = {
+        "signature": label,
+        "matched_by": matched_by,
         "times_seen_before": times_before,
         "is_recurring": times_before > 0,
         "first_seen": entry["first_seen"],
@@ -481,6 +613,13 @@ def check_recurrence(signature: str, suggested_fix: str = "") -> dict:
         "previous_fix": previous_fix or None,
         "recurrence_interval": _avg_interval_str(entry["occurrences"]) or None,
     }
+    if matched_by == "fingerprint":
+        result["fingerprint"] = fp
+        if previous_label and previous_label != label:
+            result["previously_described_as"] = previous_label
+    elif fp:
+        result["note"] = f"ignored invalid fingerprint {fingerprint!r}; matched on signature"
+    return result
 
 
 # --------------------------------------------------------------------------
@@ -615,6 +754,8 @@ def fetch_github_actions_log(repo: str, run_id: str) -> dict:
         "steps": failed_steps,
         "log_text": "\n".join(out_lines),
     }
+    fp, basis = _log_fingerprint([ln for lines in steps.values() for ln in lines])
+    result["fingerprint"], result["fingerprint_basis"] = fp, basis
     meta = _run_metadata(repo, run_id)
     if meta:
         result["run"] = meta

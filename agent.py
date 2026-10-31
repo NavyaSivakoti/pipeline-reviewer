@@ -59,8 +59,10 @@ Steps:
      out as likely pre-existing, flaky, or environmental (dependency update, unready
      service, infra), not the author's change.
    Never assume the change caused the failure.
-5. Call check_recurrence with a short STABLE signature for this failure (the
-   failing test name, or "dependency: <package>") AND your suggested_fix. Use the
+5. Call check_recurrence with the `fingerprint` returned by the evidence tool
+   (copy it exactly; if several tools returned one, prefer parse_junit_results'),
+   a short label as the signature (the failing test name, or
+   "dependency: <package>"), AND your suggested_fix. Use the
    result for the Recurrence line: if seen before, state how many times, when it
    first appeared, how often it recurs, and the PREVIOUS fix; else "first occurrence".
 
