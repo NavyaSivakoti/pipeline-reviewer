@@ -32,20 +32,69 @@ def _resolve(path: str) -> str:
 # --------------------------------------------------------------------------
 # Security guardrail: redact secrets before any text reaches the model
 # --------------------------------------------------------------------------
+_R = "[REDACTED]"
+
+# Whole-token secrets: provider-specific formats, replaced entirely.
 _SECRET_PATTERNS = [
-    re.compile(r"AIza[0-9A-Za-z\-_]{20,}"),
-    re.compile(r"sk-[0-9A-Za-z]{16,}"),
-    re.compile(r"AKIA[0-9A-Z]{16}"),
-    re.compile(r"ghp_[0-9A-Za-z]{20,}"),
-    re.compile(r"(?i)\b(password|passwd|secret|token|api[_-]?key)[ \t]*[=:][ \t]*\S+"),
-    re.compile(r"(?i)bearer\s+[0-9A-Za-z\.\-_]{12,}"),
+    # PEM private keys (multi-line; also a lone header if the log was cut off)
+    re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|\Z)"),
+    re.compile(r"AIza[0-9A-Za-z\-_]{20,}"),                       # Google API key
+    re.compile(r"ya29\.[0-9A-Za-z\-_]{20,}"),                     # Google OAuth access token
+    re.compile(r"sk-ant-[0-9A-Za-z\-_]{20,}"),                    # Anthropic
+    re.compile(r"sk-[0-9A-Za-z\-_]{16,}"),                        # OpenAI (incl. sk-proj-)
+    re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),                 # AWS access key id
+    re.compile(r"\bgh[pousr]_[0-9A-Za-z]{20,}"),                  # GitHub classic / OAuth / app tokens
+    re.compile(r"\bgithub_pat_[0-9A-Za-z_]{22,}"),                # GitHub fine-grained PAT
+    re.compile(r"\bglpat-[0-9A-Za-z\-_]{20,}"),                   # GitLab PAT
+    re.compile(r"\bxox[abposr]-[0-9A-Za-z-]{10,}"),               # Slack tokens
+    re.compile(r"https://hooks\.slack\.com/services/\S+"),        # Slack webhook
+    re.compile(r"\b[sr]k_(?:live|test)_[0-9A-Za-z]{16,}"),        # Stripe
+    re.compile(r"\bnpm_[0-9A-Za-z]{36}\b"),                       # npm
+    re.compile(r"\bpypi-[0-9A-Za-z\-_]{50,}"),                    # PyPI upload token
+    re.compile(r"\bdckr_pat_[0-9A-Za-z\-_]{20,}"),                # Docker Hub PAT
+    re.compile(r"\beyJ[0-9A-Za-z_-]{8,}\.eyJ[0-9A-Za-z_-]{8,}\.[0-9A-Za-z_-]{8,}"),  # JWT
+    re.compile(r"(?i)\bbearer\s+[0-9A-Za-z\.\-_~+/]{12,}=*"),     # Authorization: Bearer
+    re.compile(r"(?i)\bbasic\s+[0-9A-Za-z+/]{12,}=*"),            # Authorization: Basic
+]
+
+# Secrets embedded in a larger value: keep the surrounding context, replace the
+# secret part only, so the agent can still see WHICH setting / URL was involved.
+_SECRET_SUBS = [
+    # scheme://user:password@host  ->  scheme://[REDACTED]@host
+    # (Quantifiers on names are bounded on purpose: logs can be attacker-controlled
+    # in fork PRs, and an unbounded `[\w.-]*` backtracks quadratically on long tokens.)
+    (re.compile(r"(\b[a-z][a-z0-9+.\-]{0,20}://)[^/\s:@'\"]{1,256}:[^/\s@'\"]{1,256}@", re.I),
+     r"\1" + _R + "@"),
+    # Azure connection strings / SAS URLs
+    (re.compile(r"(?i)\b(AccountKey|SharedAccessKey|SharedAccessSignature)=[^;\s'\"]+"), r"\1=" + _R),
+    (re.compile(r"(?i)([?&]sig=)[^&\s'\"]+"), r"\1" + _R),
+    # "password": "value" (JSON / YAML with quotes); empty values are kept,
+    # because "the secret is empty" is often the actual bug.
+    (re.compile(r"(?i)(\"[\w.-]{0,40}(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|"
+                r"private[_-]?key|client[_-]?secret|credentials?)[\w.-]{0,40}\"\s*:\s*\")[^\"]+(\")"),
+     r"\1" + _R + r"\2"),
+    # KEY=value / key: value on one line. Keeps the key name and leaves values
+    # that are empty, already masked (***), or a reference like ${{ secrets.X }}.
+    (re.compile(r"(?i)(\b[\w.-]{0,40}(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|"
+                r"private[_-]?key|client[_-]?secret|credentials?)[\w.-]{0,40}[ \t]*[=:][ \t]*)"
+                r"(?!\*{3}|\$\{\{|\$\{|\$\(|\[REDACTED\])([\"']?)[^\s\"']+\2"),
+     r"\1" + _R),
 ]
 
 
 def redact_secrets(text: str) -> str:
-    """Replace anything that looks like a secret with [REDACTED]."""
+    """Replace anything that looks like a secret with [REDACTED].
+
+    Runs on every path that sends text to the model. Covers cloud and SaaS
+    token formats (AWS, Google, GitHub, GitLab, Slack, Stripe, npm, PyPI,
+    Docker Hub, OpenAI, Anthropic), JWTs, PEM private keys, Bearer/Basic auth
+    headers, credentials in URLs, Azure keys and SAS signatures, and
+    password/token/key assignments (the key name is kept, the value removed).
+    """
     for pat in _SECRET_PATTERNS:
-        text = pat.sub("[REDACTED]", text)
+        text = pat.sub(_R, text)
+    for pat, repl in _SECRET_SUBS:
+        text = pat.sub(repl, text)
     return text
 
 

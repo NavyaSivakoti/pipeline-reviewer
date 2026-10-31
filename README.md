@@ -113,13 +113,20 @@ subset runs on every PR; the full 11 run before a release. **See
 [`eval/README.md`](eval/README.md)** for how the evaluation and testing works.
 
 ## Security Guardrails
-- **Secret redaction before model input.** API keys, tokens, passwords, and AWS/GitHub
-  keys are stripped inside the tools, so a leaked credential in a log **never reaches
-  the model.**
+- **Secret redaction before model input.** Stripped inside the tools, so a leaked
+  credential in a log **never reaches the model**: AWS, Google, GitHub (classic,
+  fine-grained, OAuth, app), GitLab, Slack, Stripe, npm, PyPI, Docker Hub, OpenAI and
+  Anthropic tokens; JWTs; PEM private keys; Bearer/Basic auth headers; credentials in
+  URLs; Azure account keys and SAS signatures; and password/token/key assignments.
+  The key name and host are kept (`DB_PASSWORD=[REDACTED]`,
+  `postgres://[REDACTED]@db:5432`) so the evidence stays useful, and masked or empty
+  values (`***`, `${{ secrets.X }}`, `""`) are left alone, since an empty secret is
+  often the bug. The patterns are bounded so hostile fork-PR logs can't stall them.
 - **Proven by tests:** [`tests/test_redaction.py`](tests/test_redaction.py) verifies
   redaction on every model-input path (`redact_secrets`, `read_log`,
-  `parse_junit_results`). Run `pytest` — 40 tests pass (redaction, supply-chain, log
-  handling, orchestration, tool-trajectory).
+  `parse_junit_results`, `fetch_github_actions_log`). Run `pytest` — 78 tests pass
+  (redaction, fingerprints, supply-chain, log handling, orchestration), plus 4
+  tool-trajectory tests that run after an eval.
 - **Supply-chain awareness:** flags typosquatted / missing packages.
 - **Secrets stay out of git:** the API key lives in `.env` (git-ignored); in CI it's a
   GitHub Actions secret.
