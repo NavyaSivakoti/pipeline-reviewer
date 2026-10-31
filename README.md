@@ -148,10 +148,11 @@ Failures are matched by a **fingerprint computed in code** from the normalized e
 text (timestamps, line numbers, hashes, temp and runner paths stripped), so the same
 failure is recognised however the model describes it. To keep the memory between
 runs, point `PIPELINE_REVIEWER_MEMORY` at a cached path. Use separate restore/save
-steps so the cache is saved even though the job failed (pin the actions to SHAs, as
-the rest of the workflow does):
+steps so the cache is saved even though the job failed. Actions are pinned to full
+commit SHAs, like the rest of the workflows:
 ```yaml
-- uses: actions/cache/restore@v4            # at the start of the job
+# at the start of the job
+- uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
   with:
     path: .pipeline-reviewer-memory
     key: pipeline-reviewer-memory-${{ github.run_id }}
@@ -162,7 +163,7 @@ the rest of the workflow does):
   env:
     PIPELINE_REVIEWER_MEMORY: .pipeline-reviewer-memory/failures.json
   run: python ci_review.py <artifacts>
-- uses: actions/cache/save@v4
+- uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
   if: always()
   with:
     path: .pipeline-reviewer-memory
