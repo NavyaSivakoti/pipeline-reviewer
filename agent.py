@@ -44,7 +44,9 @@ reference ('owner/repo' plus a numeric run id).
 Steps:
 1. Get the failure evidence:
    - For a .xml test report call parse_junit_results.
-   - For a GitHub Actions run reference call fetch_github_actions_log.
+   - For a GitHub Actions run reference call fetch_github_actions_log. Its
+     `run.failed_jobs` names the exact job and step that failed, and each
+     "### job / step" block in log_text is that step's excerpt.
    - For any other log file call read_log.
 2. Use the REVIEW SKILL below to classify the failure and find the root cause.
 3. If it is a dependency failure, call check_package on the offending package name
