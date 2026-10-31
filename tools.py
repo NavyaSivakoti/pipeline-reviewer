@@ -12,6 +12,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -36,8 +37,6 @@ _R = "[REDACTED]"
 
 # Whole-token secrets: provider-specific formats, replaced entirely.
 _SECRET_PATTERNS = [
-    # PEM private keys (multi-line; also a lone header if the log was cut off)
-    re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|\Z)"),
     re.compile(r"AIza[0-9A-Za-z\-_]{20,}"),                       # Google API key
     re.compile(r"ya29\.[0-9A-Za-z\-_]{20,}"),                     # Google OAuth access token
     re.compile(r"sk-ant-[0-9A-Za-z\-_]{20,}"),                    # Anthropic
@@ -81,6 +80,48 @@ _SECRET_SUBS = [
      r"\1" + _R),
 ]
 
+# PEM private keys are handled line by line, not with one regex: a regex that
+# runs to the END line (or end of text) lets a lone "-----BEGIN PRIVATE KEY-----"
+# in an error message wipe out the rest of the log.
+_PEM_BEGIN = re.compile(r"-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----")
+_PEM_END = re.compile(r"-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----")
+# A key body line: base64, optionally behind a CI prefix ("job<TAB>step<TAB>",
+# a timestamp, a log level), or a PEM header such as Proc-Type / DEK-Info.
+_PEM_BODY = re.compile(
+    r"^(?:[^\t\n]{0,200}\t[^\t\n]{0,200}\t)?(?:\S{0,40}\d{4}-\d{2}-\d{2}\S{0,40} )?(?:\[\w{1,10}\] )?"
+    r"(?:[A-Za-z0-9+/=]{4,}|Proc-Type:.*|DEK-Info:.*)?\s*$"
+)
+_PEM_MAX_LINES = 120   # a 4096-bit RSA key is ~51 lines
+
+
+def _redact_pem(text: str) -> str:
+    if "PRIVATE KEY-----" not in text:
+        return text
+    lines, out, i = text.split("\n"), [], 0
+    while i < len(lines):
+        line = lines[i]
+        m = _PEM_BEGIN.search(line)
+        if not m:
+            out.append(line)
+            i += 1
+            continue
+        end_same_line = _PEM_END.search(line, m.end())
+        if end_same_line:   # one-line key, e.g. JSON with escaped \n
+            out.append(line[:m.start()] + _R + line[end_same_line.end():])
+            i += 1
+            continue
+        out.append(line[:m.start()] + _R)
+        j = i + 1
+        while j < len(lines) and j - i <= _PEM_MAX_LINES:
+            if _PEM_END.search(lines[j]):
+                j += 1
+                break
+            if not _PEM_BODY.match(lines[j]):
+                break   # not key material: stop, keep the rest of the log
+            j += 1
+        i = j
+    return "\n".join(out)
+
 
 def redact_secrets(text: str) -> str:
     """Replace anything that looks like a secret with [REDACTED].
@@ -91,6 +132,7 @@ def redact_secrets(text: str) -> str:
     headers, credentials in URLs, Azure keys and SAS signatures, and
     password/token/key assignments (the key name is kept, the value removed).
     """
+    text = _redact_pem(text)
     for pat in _SECRET_PATTERNS:
         text = pat.sub(_R, text)
     for pat, repl in _SECRET_SUBS:
@@ -209,7 +251,7 @@ def _normalize_error(line: str) -> str:
 
 def _fingerprint(basis: list) -> str:
     joined = "\n".join(basis).encode()
-    return hashlib.sha1(joined).hexdigest()[:12] if basis else ""
+    return hashlib.sha1(joined, usedforsecurity=False).hexdigest()[:12] if basis else ""
 
 
 def _log_fingerprint(lines: list, max_lines: int = 3) -> tuple:
@@ -276,6 +318,39 @@ def _render(lines: list, keep: set) -> list:
     return out
 
 
+_MAX_LOG_BYTES = 20 * 1024 * 1024     # larger logs keep their first 5 MB + last 15 MB
+_MAX_XML_BYTES = 50 * 1024 * 1024     # larger JUnit reports are refused
+
+
+def _open_regular_file(file_path: str):
+    """Resolve and check a path before reading it. Only regular files are read,
+    so a device or pipe (e.g. /dev/zero) can't hang the reviewer or exhaust
+    memory. Returns (path, size, error)."""
+    path = _resolve(file_path)
+    if not os.path.exists(path):
+        return path, 0, f"file not found: {file_path}"
+    if not os.path.isfile(path):
+        return path, 0, f"not a regular file: {file_path}"
+    return path, os.path.getsize(path), None
+
+
+def _read_capped(file_path: str, cap: int) -> tuple:
+    """Read a text file without ever holding more than `cap` bytes of it.
+    Returns (text, error)."""
+    path, size, err = _open_regular_file(file_path)
+    if err:
+        return "", err.replace("file not found", "log file not found")
+    with open(path, "rb") as f:
+        if size <= cap:
+            data = f.read(cap)   # still bounded, in case the file is growing
+        else:
+            head = f.read(cap // 4)
+            f.seek(-(cap - cap // 4), os.SEEK_END)
+            omitted = size - cap
+            data = head + f"\n... ({omitted} bytes omitted: log too large) ...\n".encode() + f.read()
+    return data.decode("utf-8", errors="replace"), None
+
+
 def read_log(file_path: str) -> dict:
     """Read any CI/CD or build/console log and return its redacted text.
 
@@ -291,11 +366,9 @@ def read_log(file_path: str) -> dict:
     Args:
         file_path: path to the log / console-output file.
     """
-    try:
-        with open(_resolve(file_path), errors="replace") as f:
-            raw = f.read()
-    except FileNotFoundError:
-        return {"error": f"log file not found: {file_path}"}
+    raw, err = _read_capped(file_path, _MAX_LOG_BYTES)
+    if err:
+        return {"error": err}
 
     lines = [_clean_line(ln) for ln in redact_secrets(raw).splitlines()]
     total = len(lines)
@@ -385,10 +458,13 @@ def parse_junit_results(file_path: str) -> dict:
     Args:
         file_path: path to the JUnit XML results file.
     """
+    path, size, err = _open_regular_file(file_path)
+    if err:
+        return {"error": err.replace("file not found", "results file not found")}
+    if size > _MAX_XML_BYTES:
+        return {"error": f"results file too large ({size} bytes; limit {_MAX_XML_BYTES})"}
     try:
-        tree = ET.parse(_resolve(file_path))
-    except FileNotFoundError:
-        return {"error": f"results file not found: {file_path}"}
+        tree = ET.parse(path)
     except ET.ParseError as e:
         return {"error": f"could not parse XML: {e}"}
 
@@ -602,12 +678,22 @@ def _load_store() -> dict:
 
 
 def _save_store(store: dict) -> None:
-    """Write atomically, so a crash or a parallel job can't leave half a file."""
-    os.makedirs(os.path.dirname(os.path.abspath(MEMORY_FILE)), exist_ok=True)
-    tmp = f"{MEMORY_FILE}.{os.getpid()}.tmp"
-    with open(tmp, "w") as f:
-        json.dump(store, f, indent=2)
-    os.replace(tmp, MEMORY_FILE)
+    """Write atomically, so a crash or a parallel job can't leave half a file.
+
+    The temp file comes from mkstemp (random name, created with O_EXCL), so a
+    file or symlink planted at a guessable name can't redirect the write.
+    """
+    directory = os.path.dirname(os.path.abspath(MEMORY_FILE))
+    os.makedirs(directory, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".failures-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(store, f, indent=2)
+        os.replace(tmp, MEMORY_FILE)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
 
 def check_recurrence(signature: str, suggested_fix: str = "", fingerprint: str = "") -> dict:
@@ -682,6 +768,22 @@ _MAX_TOTAL_LINES = 300
 
 def _gh(args: list, timeout: int = 60):
     return subprocess.run(["gh", *args], capture_output=True, text=True, timeout=timeout)
+
+
+# The agent chooses these arguments, and log text it reads can try to steer it.
+# Validate them strictly so a value like "--web" or "--repo=other/repo" can never
+# be read by gh as a flag.
+_REPO_ARG = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/(?!\.\.?$)[A-Za-z0-9._-]{1,100}$")
+_NUMBER_ARG = re.compile(r"^[0-9]{1,20}$")
+
+
+def _bad_gh_args(repo, number, what: str):
+    """Return an error message if repo / number are not safe to pass to gh."""
+    if not _REPO_ARG.match(str(repo or "")):
+        return f"invalid repo {str(repo)[:60]!r}: expected 'owner/repo'"
+    if not _NUMBER_ARG.match(str(number or "")):
+        return f"invalid {what} {str(number)[:30]!r}: expected digits only"
+    return None
 
 
 def _split_gha_line(line: str) -> tuple:
@@ -759,6 +861,9 @@ def fetch_github_actions_log(repo: str, run_id: str) -> dict:
         repo: 'owner/repo' (e.g. 'NavyaSivakoti/demo-app').
         run_id: the numeric run id.
     """
+    bad = _bad_gh_args(repo, run_id, "run id")
+    if bad:
+        return {"error": bad}
     source = "failed_steps"
     try:
         out = _gh(["run", "view", str(run_id), "--repo", repo, "--log-failed"])
@@ -822,6 +927,9 @@ def get_pr_changes(repo: str, pr_number: str) -> dict:
         repo: 'owner/repo' (e.g. 'NavyaSivakoti/demo-app').
         pr_number: the pull-request number.
     """
+    bad = _bad_gh_args(repo, pr_number, "PR number")
+    if bad:
+        return {"error": bad}
     try:
         names = subprocess.run(
             ["gh", "pr", "diff", str(pr_number), "--repo", repo, "--name-only"],
