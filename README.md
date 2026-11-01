@@ -53,10 +53,10 @@ completeness guard** (never posts a blank/truncated review) for the free tier.
 ## Tools Used
 | Tool | What it does | What it enables |
 |------|--------------|------------------------------|
-| `read_log` | Reads any CI log (GitHub Actions/Jenkins/GitLab) | format-agnostic + redacts secrets |
-| `parse_junit_results` | Parses JUnit/pytest XML (universal) | exact, reliable parsing |
-| `fetch_github_actions_log` | Pulls a run's logs **directly from GitHub** | acts on live data — no file needed |
-| `get_pr_changes` | Inspects the **files changed in the PR** | tests whether the PR caused it — vs pre-existing/flaky |
+| `read_log` | Reads any CI log (GitHub Actions/Jenkins/GitLab); excerpts long logs around real errors | format-agnostic + redacts secrets + failure fingerprint |
+| `parse_junit_results` | Parses JUnit/pytest/Surefire XML: failures, errors, flaky reruns | exact, reliable parsing |
+| `fetch_github_actions_log` | Pulls only the **failed steps** of a run directly from GitHub, grouped by job/step | acts on live data — no file needed |
+| `get_pr_changes` | Per-file PR diffs, **files named in the failure first**, within a line budget | tests whether the PR caused it — vs pre-existing/flaky |
 | `check_package` | **Live PyPI + Maven Central** lookup for typosquat/missing packages (Python & Java) | fetches live registry data at review time |
 | `check_recurrence` | Remembers past failures, flags recurrences | **persistent memory** across runs |
 
@@ -86,6 +86,111 @@ cp .env.example .env          # paste your free Gemini key (aistudio.google.com/
 .venv/bin/python run.py NavyaSivakoti/demo-app 28689439589  # a live GitHub run (no file)
 ```
 > Free-tier note: ~5 req/min and ~20/day per model; the runner auto-retries 429/503.
+
+### Use it in your own repo
+The agent returns a **structured review** (validated against
+[`review_schema.py`](review_schema.py)) and the comment is rendered from it in code,
+so every review has the same sections. `post_review.py` keeps **one comment per PR**
+and edits it on every failed run instead of adding a new one, then flips it to
+**✅ Resolved** (with the last review collapsed) once CI passes. It only ever edits
+comments written by `github-actions[bot]` that carry its hidden marker.
+
+Everything is pinned to a full commit SHA, **including the reviewer itself**:
+cloning its `main` would run whatever was pushed there last, with your API key
+and write access to the PR.
+```yaml
+name: CI + AI Pipeline Reviewer
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # commit comments (pushes without a PR)
+      pull-requests: write     # the PR comment
+    env:
+      REVIEWER_REPO: NavyaSivakoti/pipeline-reviewer
+      REVIEWER_SHA: 0000000000000000000000000000000000000000   # <- full SHA of the reviewer commit you trust
+      HAS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY != '' }}       # false on fork PRs: review is skipped
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PIPELINE_REVIEWER_MEMORY: .pipeline-reviewer-memory/failures.json
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .pipeline-reviewer-memory
+          key: pipeline-reviewer-memory-${{ github.run_id }}
+          restore-keys: pipeline-reviewer-memory-
+
+      - run: pip install -r requirements.txt
+      - name: Run tests (capture output, decide later)
+        id: tests
+        run: |
+          set +e
+          pytest -q --junitxml=results.xml 2>&1 | tee pipeline.log
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Get the reviewer at a pinned commit
+        if: env.HAS_GEMINI_KEY == 'true'
+        run: |
+          git init -q reviewer
+          git -C reviewer fetch -q --depth 1 "https://github.com/$REVIEWER_REPO" "$REVIEWER_SHA"
+          git -C reviewer checkout -q FETCH_HEAD
+          test "$(git -C reviewer rev-parse HEAD)" = "$REVIEWER_SHA"
+
+      - name: AI review
+        if: steps.tests.outputs.code != '0' && env.HAS_GEMINI_KEY == 'true'
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_GENAI_USE_VERTEXAI: "FALSE"
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pip install -q -r reviewer/requirements.txt
+          args=("$PWD/results.xml" "$PWD/pipeline.log")
+          if [ -n "$PR_NUMBER" ]; then args=(--pr "$GITHUB_REPOSITORY#$PR_NUMBER" "${args[@]}"); fi
+          python reviewer/ci_review.py --json review.json "${args[@]}" > review.md
+
+      - name: Post or update the review comment
+        if: steps.tests.outputs.code != '0' && env.HAS_GEMINI_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "$PR_NUMBER" ]; then
+            python reviewer/post_review.py --repo "$GITHUB_REPOSITORY" --pr "$PR_NUMBER" \
+              --review review.md --author "$PR_AUTHOR" --sha "$HEAD_SHA"
+          else
+            python reviewer/post_review.py --repo "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --review review.md
+          fi
+
+      - name: Mark the review resolved when CI passes
+        if: steps.tests.outputs.code == '0' && env.PR_NUMBER != '' && env.HAS_GEMINI_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python reviewer/post_review.py --repo "$GITHUB_REPOSITORY" --pr "$PR_NUMBER" --resolved --sha "$HEAD_SHA"
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: always()
+        with:
+          path: .pipeline-reviewer-memory
+          key: pipeline-reviewer-memory-${{ github.run_id }}
+
+      - name: Fail the job if tests failed
+        if: steps.tests.outputs.code != '0'
+        run: exit 1
+```
+Untrusted values (PR author, SHAs, numbers) are passed through `env:` and quoted, never
+pasted into `run:` with `${{ }}`, so they can't inject shell commands.
 
 ## Evaluation Results
 `eval/run_eval.py` scores the agent on **11 labelled scenarios**. Each review is graded
@@ -122,11 +227,24 @@ subset runs on every PR; the full 11 run before a release. **See
   `postgres://[REDACTED]@db:5432`) so the evidence stays useful, and masked or empty
   values (`***`, `${{ secrets.X }}`, `""`) are left alone, since an empty secret is
   often the bug. The patterns are bounded so hostile fork-PR logs can't stall them.
-- **Proven by tests:** [`tests/test_redaction.py`](tests/test_redaction.py) verifies
-  redaction on every model-input path (`redact_secrets`, `read_log`,
-  `parse_junit_results`, `fetch_github_actions_log`). Run `pytest` — 78 tests pass
-  (redaction, fingerprints, supply-chain, log handling, orchestration), plus 4
-  tool-trajectory tests that run after an eval.
+- **Prompt-injection guardrails.** Logs, test output and diffs from a fork PR are
+  written by whoever opened it, so they are treated as data, never instructions:
+  - the file tools can read **only the artifacts given for the review**, so a log
+    can't steer the agent into reading `.env` or other files;
+  - pipeline text is wrapped in untrusted-content markers (which the text can't
+    fake), the agent has explicit security rules, and lines that address an AI
+    ("ignore previous instructions…") are flagged so the review reports them;
+  - `gh` arguments are validated, so a value like `--web` can't become a flag;
+  - the posted review is **sanitized** ([`sanitize.py`](sanitize.py)): @mentions
+    are neutralised, images / raw HTML / hidden comments removed, links outside
+    `github.com` defanged (add hosts with `REVIEW_ALLOWED_LINK_HOSTS`), `/commands`
+    neutralised, and secrets redacted again. Code blocks are left intact.
+- **Proven by tests:** [`tests/test_redaction.py`](tests/test_redaction.py),
+  [`tests/test_prompt_injection.py`](tests/test_prompt_injection.py) and
+  [`tests/test_security_hardening.py`](tests/test_security_hardening.py). Run
+  `pytest` — 123 tests pass (redaction, prompt injection, hardening, fingerprints,
+  supply-chain, log handling, orchestration), plus 4 tool-trajectory tests that run
+  after an eval.
 - **Supply-chain awareness:** flags typosquatted / missing packages.
 - **Secrets stay out of git:** the API key lives in `.env` (git-ignored); in CI it's a
   GitHub Actions secret.
@@ -173,7 +291,7 @@ commit SHAs, like the rest of the workflows:
 ## Future Work
 - Trend insights from the recurrence memory (top recurring failures, flakiest tests).
 - Expose the tools as an **MCP server** (usable from Cursor / Claude).
-- PR-comment mode (in addition to commit comments) + inline suggestions.
+- Inline suggestion blocks on the exact lines of the PR diff.
 - SonarQube / static-analysis support.
 
 ---

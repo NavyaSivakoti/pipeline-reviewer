@@ -7,6 +7,7 @@ in both cases, and never post a mangled comment.
 """
 
 import asyncio
+import json
 import os
 import re
 import sys
@@ -20,8 +21,11 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 from google.adk.runners import InMemoryRunner
 from google.genai import types
+from pydantic import ValidationError
 
+import tools
 from agent import root_agent
+from review_schema import coerce_review
 
 APP = "pipeline_reviewer"
 USER = "local_user"
@@ -41,14 +45,35 @@ def _is_complete(review: str) -> bool:
     return bool(review) and all(section in review for section in _REQUIRED)
 
 
+def _finalize(state: dict) -> bool:
+    """Render the markdown review from the agent's structured answer.
+
+    Sets state["review"] (markdown, what gets posted) and, when the agent
+    returned structured data, state["review_structured"] (a dict, for --json).
+    A plain markdown answer is still accepted. Returns False if the answer was
+    JSON that doesn't fit the schema, so the caller retries.
+    """
+    raw = state.get("review_data", state.get("review"))
+    try:
+        data, markdown = coerce_review(raw)
+    except ValueError as err:
+        print(f"   {err}", file=sys.stderr)
+        return False
+    state["review"] = markdown
+    if data is not None:
+        state["review_structured"] = data
+    return True
+
+
 def build_message(paths: list[str], pr_ref: str | None = None) -> str:
     msg = "A CI/CD pipeline failed. Review it.\nArtifacts: " + ", ".join(paths)
     if pr_ref:
         repo, _, num = pr_ref.partition("#")
         msg += (
             f"\n\nThis failure occurred on pull request #{num} of {repo}. "
-            f'Call get_pr_changes with repo="{repo}" and pr_number="{num}" to see the '
-            "files this PR changed, then state whether the failure is in code this PR "
+            f'After reading the evidence, call get_pr_changes with repo="{repo}", '
+            f'pr_number="{num}" and focus_paths set to the files named in the failure, '
+            "then state whether the failure is in code this PR "
             "changed (likely introduced by it) or in code it did not touch (likely "
             "pre-existing, flaky, or environmental)."
         )
@@ -89,6 +114,20 @@ def _ensure_loop():
 
 
 def run_agent(paths: list[str], on_event=None, max_retries: int = 6, pr_ref: str | None = None) -> dict:
+    # The file tools may read ONLY the artifacts given for this review, so text
+    # in a log can't steer the agent into reading other files (e.g. .env).
+    # (A GitHub run reference like "owner/repo 123" also lands here; harmless.)
+    # The previous setting is restored afterwards so the limit never outlives
+    # this review.
+    previous = tools._ALLOWED_ARTIFACTS
+    tools.set_allowed_artifacts(paths)
+    try:
+        return _run_with_retries(paths, on_event, max_retries, pr_ref)
+    finally:
+        tools._ALLOWED_ARTIFACTS = previous
+
+
+def _run_with_retries(paths, on_event, max_retries, pr_ref) -> dict:
     delay = 10.0
     loop = _ensure_loop()
     for attempt in range(1, max_retries + 1):
@@ -102,11 +141,20 @@ def run_agent(paths: list[str], on_event=None, max_retries: int = 6, pr_ref: str
                 time.sleep(wait)
                 delay = min(delay * 1.5, 65)
                 continue
+            # ADK validates the final answer against the Review schema and
+            # raises if the model's JSON doesn't fit: retry like a bad review.
+            if isinstance(err, (ValidationError, json.JSONDecodeError)) and attempt < max_retries:
+                print(f"   review did not match the schema; waiting {delay:.0f}s then retry "
+                      f"({attempt}/{max_retries})", file=sys.stderr)
+                time.sleep(delay)
+                delay = min(delay * 1.5, 65)
+                continue
             raise
 
-        # The call succeeded, but the free tier can still return a blank or
-        # truncated review. Treat that like a transient error and retry.
-        if _is_complete(state.get("review", "")):
+        # The call succeeded, but the free tier can still return a blank,
+        # truncated or schema-breaking review. Treat that like a transient
+        # error and retry.
+        if _finalize(state) and _is_complete(state.get("review", "")):
             return state
         if attempt < max_retries:
             print(f"   review blank/incomplete; waiting {delay:.0f}s then retry ({attempt}/{max_retries})", file=sys.stderr)
