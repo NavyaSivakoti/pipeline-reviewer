@@ -46,6 +46,87 @@ def test_parse_junit_happy_path(tmp_path):
     assert out["failed_tests"][0]["name"] == "test_c"
 
 
+def test_parse_junit_reports_errors_separately(tmp_path):
+    # <error> = the test crashed (setup/fixture/import), not an assertion.
+    # It used to be silently ignored.
+    xml = (
+        '<testsuite name="s">'
+        '<testcase classname="c" name="test_ok"/>'
+        '<testcase classname="c" name="test_db" file="tests/test_db.py" line="12">'
+        '<error type="OperationalError" message="connection refused">'
+        "conftest.py:8: in db\nE OperationalError</error>"
+        "<system-err>could not connect to server</system-err></testcase>"
+        '<testcase classname="c" name="test_skip"><skipped/></testcase>'
+        "</testsuite>"
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(xml)
+    out = tools.parse_junit_results(str(p))
+    assert out["total_tests"] == 3
+    assert out["failures"] == 0
+    assert out["errors"] == 1
+    assert out["skipped"] == 1
+    assert out["passed"] == 1
+    e = out["errored_tests"][0]
+    assert e["name"] == "test_db"
+    assert e["kind"] == "error"
+    assert e["type"] == "OperationalError"
+    assert e["file"] == "tests/test_db.py" and e["line"] == "12"
+    assert "could not connect" in e["stderr_tail"]
+
+
+def test_parse_junit_surefire_flaky(tmp_path):
+    xml = (
+        '<testsuite name="s"><testcase classname="c" name="testRetry">'
+        '<flakyFailure type="java.net.SocketTimeoutException" message="Read timed out">'
+        "trace</flakyFailure></testcase></testsuite>"
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(xml)
+    out = tools.parse_junit_results(str(p))
+    assert out["failures"] == 0
+    assert out["flaky_passed_on_rerun"] == 1
+    assert out["flaky_tests"][0]["kind"] == "flaky"
+
+
+def test_parse_junit_keeps_trace_head_and_tail(tmp_path):
+    trace = "TOP_OF_TRACE\n" + ("x" * 5000) + "\nCaused by: RealRootCause"
+    xml = (
+        '<testsuite><testcase classname="c" name="t">'
+        f'<failure message="m">{trace}</failure></testcase></testsuite>'
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(xml)
+    t = tools.parse_junit_results(str(p))["failed_tests"][0]["trace"]
+    assert "TOP_OF_TRACE" in t and "Caused by: RealRootCause" in t
+    assert len(t) < 1700
+
+
+def test_parse_junit_caps_mass_failures(tmp_path):
+    cases = "".join(
+        f'<testcase classname="c" name="t{i}"><failure message="m"/></testcase>'
+        for i in range(60)
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(f"<testsuite>{cases}</testsuite>")
+    out = tools.parse_junit_results(str(p))
+    assert out["failures"] == 60
+    assert len(out["failed_tests"]) == 25
+    assert "25 of 60" in out["note"]
+
+
+def test_parse_junit_redacts_captured_output(tmp_path):
+    xml = (
+        '<testsuite><testcase classname="c" name="t"><failure message="m"/>'
+        "<system-out>token=ghp_abcdefghijklmnopqrstuvwxyz123</system-out>"
+        "</testcase></testsuite>"
+    )
+    p = tmp_path / "j.xml"
+    p.write_text(xml)
+    out = tools.parse_junit_results(str(p))
+    assert "ghp_" not in json.dumps(out)
+
+
 def test_parse_junit_malformed_xml(tmp_path):
     p = tmp_path / "bad.xml"
     p.write_text("<not valid xml")
@@ -172,6 +253,84 @@ def test_fetch_github_actions_log_surfaces_errors(monkeypatch):
     out = tools.fetch_github_actions_log("owner/repo", "123")
     assert out["artifact_type"] == "github_actions_log"
     assert "build failed" in out["log_text"]
+
+
+def _gha_line(job, step, text, ts="2026-10-31T22:00:00.1234567Z"):
+    return f"{job}\t{step}\t{ts} {text}"
+
+
+def _fake_gh(log_failed="", full_log="", meta=None, calls=None):
+    def fake_run(cmd, **kw):
+        if calls is not None:
+            calls.append(cmd)
+        if "--json" in cmd:
+            return types.SimpleNamespace(returncode=0, stdout=json.dumps(meta or {}), stderr="")
+        if "--log-failed" in cmd:
+            return types.SimpleNamespace(returncode=0, stdout=log_failed, stderr="")
+        return types.SimpleNamespace(returncode=0, stdout=full_log, stderr="")
+    return fake_run
+
+
+def test_fetch_gha_uses_log_failed_and_groups_by_step(monkeypatch):
+    log = "\n".join(
+        [_gha_line("test", "Run pytest", f"collecting item {i}") for i in range(50)]
+        + [_gha_line("test", "Run pytest", "\x1b[31mE   AssertionError: assert 1 == 2\x1b[0m")]
+        + [_gha_line("test", "Run pytest", f"teardown {i}") for i in range(40)]
+        + [_gha_line("test", "Run pytest", "##[error]Process completed with exit code 1.")]
+    )
+    calls = []
+    monkeypatch.setattr(tools.subprocess, "run", _fake_gh(log_failed=log, calls=calls))
+    out = tools.fetch_github_actions_log("owner/repo", "123")
+    assert out["source"] == "failed_steps"
+    assert not any(c[-1] == "--log" for c in calls), "should not fetch the full log"
+    text = out["log_text"]
+    assert "### test / Run pytest" in text
+    assert "AssertionError: assert 1 == 2" in text
+    assert "\x1b[" not in text, "ANSI codes should be stripped"
+    assert "2026-10-31T" not in text, "timestamps should be stripped"
+    assert "collecting item 45" in text, "context before the error is kept"
+    assert "collecting item 5\n" not in text, "far-away noise is dropped"
+    assert "exit code 1" in text, "step tail is kept"
+    assert "lines omitted" in text
+    assert out["steps"] == [{"job": "test", "step": "Run pytest", "line_count": 92}]
+
+
+def test_fetch_gha_falls_back_to_full_log(monkeypatch):
+    full = _gha_line("build", "Compile", "error: cannot find symbol")
+    monkeypatch.setattr(tools.subprocess, "run", _fake_gh(log_failed="", full_log=full))
+    out = tools.fetch_github_actions_log("owner/repo", "123")
+    assert out["source"] == "full_log"
+    assert "cannot find symbol" in out["log_text"]
+
+
+def test_fetch_gha_includes_run_metadata(monkeypatch):
+    meta = {
+        "workflowName": "CI", "event": "pull_request", "headBranch": "feature/x",
+        "headSha": "abcdef1234567890", "conclusion": "failure",
+        "jobs": [
+            {"name": "lint", "conclusion": "success", "steps": []},
+            {"name": "test", "conclusion": "failure", "steps": [
+                {"name": "Checkout", "conclusion": "success"},
+                {"name": "Run pytest", "conclusion": "failure"}]},
+        ],
+    }
+    log = _gha_line("test", "Run pytest", "FAILED tests/test_a.py::test_x")
+    monkeypatch.setattr(tools.subprocess, "run", _fake_gh(log_failed=log, meta=meta))
+    run = tools.fetch_github_actions_log("owner/repo", "123")["run"]
+    assert run["workflow"] == "CI" and run["branch"] == "feature/x"
+    assert run["commit"] == "abcdef123456"
+    assert run["failed_jobs"] == [
+        {"job": "test", "conclusion": "failure", "failed_steps": ["Run pytest"]}]
+
+
+def test_fetch_gha_redacts_and_respects_budget(monkeypatch):
+    lines = [_gha_line("j", f"step{s}", f"ERROR line {i} token=ghp_abcdefghijklmnopqrstuvwx")
+             for s in range(10) for i in range(80)]
+    monkeypatch.setattr(tools.subprocess, "run", _fake_gh(log_failed="\n".join(lines)))
+    out = tools.fetch_github_actions_log("owner/repo", "123")
+    assert "ghp_" not in out["log_text"]
+    assert len(out["log_text"].splitlines()) <= 302
+    assert "### j / step9" in out["log_text"], "the last (failing) step must survive"
 
 
 def test_fetch_github_actions_log_handles_missing_gh(monkeypatch):

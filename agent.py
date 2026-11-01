@@ -44,7 +44,9 @@ reference ('owner/repo' plus a numeric run id).
 Steps:
 1. Get the failure evidence:
    - For a .xml test report call parse_junit_results.
-   - For a GitHub Actions run reference call fetch_github_actions_log.
+   - For a GitHub Actions run reference call fetch_github_actions_log. Its
+     `run.failed_jobs` names the exact job and step that failed, and each
+     "### job / step" block in log_text is that step's excerpt.
    - For any other log file call read_log.
 2. Use the REVIEW SKILL below to classify the failure and find the root cause.
 3. If it is a dependency failure, call check_package on the offending package name
@@ -57,8 +59,10 @@ Steps:
      out as likely pre-existing, flaky, or environmental (dependency update, unready
      service, infra), not the author's change.
    Never assume the change caused the failure.
-5. Call check_recurrence with a short STABLE signature for this failure (the
-   failing test name, or "dependency: <package>") AND your suggested_fix. Use the
+5. Call check_recurrence with the `fingerprint` returned by the evidence tool
+   (copy it exactly; if several tools returned one, prefer parse_junit_results'),
+   a short label as the signature (the failing test name, or
+   "dependency: <package>"), AND your suggested_fix. Use the
    result for the Recurrence line: if seen before, state how many times, when it
    first appeared, how often it recurs, and the PREVIOUS fix; else "first occurrence".
 

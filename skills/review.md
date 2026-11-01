@@ -23,6 +23,12 @@ When a CI/CD pipeline has failed and you have log output and/or test results.
 - **flaky** — fails intermittently, passes on rerun (timeouts, "flaky", "quarantined").
 - **unknown** — evidence is insufficient.
 
+**Reading JUnit results:** `failed_tests` are assertion failures (usually
+`test_failure`). `errored_tests` crashed in setup, a fixture, or an import. Check
+their `type`/`message`: a connection refused or missing env var points to
+`infra_error`/`config_error`, not `test_failure`. Tests in `flaky_tests` already
+passed on rerun, so they are evidence for `flaky`.
+
 Do NOT label a **deploy / config / infra** failure as `build_error` just because it ran
 in a Docker or CI step — check *what actually failed*: the build, the release, or the
 environment.

@@ -113,13 +113,20 @@ subset runs on every PR; the full 11 run before a release. **See
 [`eval/README.md`](eval/README.md)** for how the evaluation and testing works.
 
 ## Security Guardrails
-- **Secret redaction before model input.** API keys, tokens, passwords, and AWS/GitHub
-  keys are stripped inside the tools, so a leaked credential in a log **never reaches
-  the model.**
+- **Secret redaction before model input.** Stripped inside the tools, so a leaked
+  credential in a log **never reaches the model**: AWS, Google, GitHub (classic,
+  fine-grained, OAuth, app), GitLab, Slack, Stripe, npm, PyPI, Docker Hub, OpenAI and
+  Anthropic tokens; JWTs; PEM private keys; Bearer/Basic auth headers; credentials in
+  URLs; Azure account keys and SAS signatures; and password/token/key assignments.
+  The key name and host are kept (`DB_PASSWORD=[REDACTED]`,
+  `postgres://[REDACTED]@db:5432`) so the evidence stays useful, and masked or empty
+  values (`***`, `${{ secrets.X }}`, `""`) are left alone, since an empty secret is
+  often the bug. The patterns are bounded so hostile fork-PR logs can't stall them.
 - **Proven by tests:** [`tests/test_redaction.py`](tests/test_redaction.py) verifies
   redaction on every model-input path (`redact_secrets`, `read_log`,
-  `parse_junit_results`). Run `pytest` — 40 tests pass (redaction, supply-chain, log
-  handling, orchestration, tool-trajectory).
+  `parse_junit_results`, `fetch_github_actions_log`). Run `pytest` — 78 tests pass
+  (redaction, fingerprints, supply-chain, log handling, orchestration), plus 4
+  tool-trajectory tests that run after an eval.
 - **Supply-chain awareness:** flags typosquatted / missing packages.
 - **Secrets stay out of git:** the API key lives in `.env` (git-ignored); in CI it's a
   GitHub Actions secret.
@@ -128,14 +135,43 @@ subset runs on every PR; the full 11 run before a release. **See
 - Root cause and fixes are **best-effort LLM suggestions** — a human reviews and applies them.
 - **No release GO/NO-GO** decision: a single pipeline failure can't determine release
   readiness (that needs coverage, security scans, e2e, sign-off). We deliberately scoped that out.
-- **Recurrence memory is local**, not shared across CI runs (each Action run is a fresh
-  checkout, so in CI it reports "first occurrence").
+- **Recurrence memory needs a cache in CI.** Each Action run is a fresh checkout, so
+  unless the memory file is persisted (see below) CI reports "first occurrence".
+  GitHub caches are branch-scoped: a PR branch can read the default branch's cache,
+  but not another PR's.
 - Free-tier Gemini is rate-limited and occasionally overloaded (429/503), and can
   return a blank/truncated review; the runner retries on all of these and posts an
   honest "re-run" placeholder rather than a mangled comment.
 
+### Recurrence memory in CI
+Failures are matched by a **fingerprint computed in code** from the normalized error
+text (timestamps, line numbers, hashes, temp and runner paths stripped), so the same
+failure is recognised however the model describes it. To keep the memory between
+runs, point `PIPELINE_REVIEWER_MEMORY` at a cached path. Use separate restore/save
+steps so the cache is saved even though the job failed. Actions are pinned to full
+commit SHAs, like the rest of the workflows:
+```yaml
+# at the start of the job
+- uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+  with:
+    path: .pipeline-reviewer-memory
+    key: pipeline-reviewer-memory-${{ github.run_id }}
+    restore-keys: pipeline-reviewer-memory-
+# ... build / test steps ...
+- name: AI pipeline review
+  if: failure()
+  env:
+    PIPELINE_REVIEWER_MEMORY: .pipeline-reviewer-memory/failures.json
+  run: python ci_review.py <artifacts>
+- uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+  if: always()
+  with:
+    path: .pipeline-reviewer-memory
+    key: pipeline-reviewer-memory-${{ github.run_id }}
+```
+
 ## Future Work
-- Persist recurrence memory across CI runs (cache/artifact) + trend insights.
+- Trend insights from the recurrence memory (top recurring failures, flakiest tests).
 - Expose the tools as an **MCP server** (usable from Cursor / Claude).
 - PR-comment mode (in addition to commit comments) + inline suggestions.
 - SonarQube / static-analysis support.

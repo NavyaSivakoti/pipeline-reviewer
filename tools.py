@@ -7,17 +7,21 @@ in code; the LLM does the reasoning. `check_package` reaches LIVE data
 """
 
 import datetime
+import hashlib
 import json
 import os
 import re
 import subprocess
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-MEMORY_FILE = os.path.join(BASE, "memory", "failures.json")
+# Point this at a path your CI caches (e.g. with actions/cache) so recurrence
+# memory survives between runs instead of starting empty on every checkout.
+MEMORY_FILE = os.environ.get("PIPELINE_REVIEWER_MEMORY") or os.path.join(BASE, "memory", "failures.json")
 
 
 def _resolve(path: str) -> str:
@@ -29,20 +33,110 @@ def _resolve(path: str) -> str:
 # --------------------------------------------------------------------------
 # Security guardrail: redact secrets before any text reaches the model
 # --------------------------------------------------------------------------
+_R = "[REDACTED]"
+
+# Whole-token secrets: provider-specific formats, replaced entirely.
 _SECRET_PATTERNS = [
-    re.compile(r"AIza[0-9A-Za-z\-_]{20,}"),
-    re.compile(r"sk-[0-9A-Za-z]{16,}"),
-    re.compile(r"AKIA[0-9A-Z]{16}"),
-    re.compile(r"ghp_[0-9A-Za-z]{20,}"),
-    re.compile(r"(?i)\b(password|passwd|secret|token|api[_-]?key)[ \t]*[=:][ \t]*\S+"),
-    re.compile(r"(?i)bearer\s+[0-9A-Za-z\.\-_]{12,}"),
+    re.compile(r"AIza[0-9A-Za-z\-_]{20,}"),                       # Google API key
+    re.compile(r"ya29\.[0-9A-Za-z\-_]{20,}"),                     # Google OAuth access token
+    re.compile(r"sk-ant-[0-9A-Za-z\-_]{20,}"),                    # Anthropic
+    re.compile(r"sk-[0-9A-Za-z\-_]{16,}"),                        # OpenAI (incl. sk-proj-)
+    re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),                 # AWS access key id
+    re.compile(r"\bgh[pousr]_[0-9A-Za-z]{20,}"),                  # GitHub classic / OAuth / app tokens
+    re.compile(r"\bgithub_pat_[0-9A-Za-z_]{22,}"),                # GitHub fine-grained PAT
+    re.compile(r"\bglpat-[0-9A-Za-z\-_]{20,}"),                   # GitLab PAT
+    re.compile(r"\bxox[abposr]-[0-9A-Za-z-]{10,}"),               # Slack tokens
+    re.compile(r"https://hooks\.slack\.com/services/\S+"),        # Slack webhook
+    re.compile(r"\b[sr]k_(?:live|test)_[0-9A-Za-z]{16,}"),        # Stripe
+    re.compile(r"\bnpm_[0-9A-Za-z]{36}\b"),                       # npm
+    re.compile(r"\bpypi-[0-9A-Za-z\-_]{50,}"),                    # PyPI upload token
+    re.compile(r"\bdckr_pat_[0-9A-Za-z\-_]{20,}"),                # Docker Hub PAT
+    re.compile(r"\beyJ[0-9A-Za-z_-]{8,}\.eyJ[0-9A-Za-z_-]{8,}\.[0-9A-Za-z_-]{8,}"),  # JWT
+    re.compile(r"(?i)\bbearer\s+[0-9A-Za-z\.\-_~+/]{12,}=*"),     # Authorization: Bearer
+    re.compile(r"(?i)\bbasic\s+[0-9A-Za-z+/]{12,}=*"),            # Authorization: Basic
 ]
+
+# Secrets embedded in a larger value: keep the surrounding context, replace the
+# secret part only, so the agent can still see WHICH setting / URL was involved.
+_SECRET_SUBS = [
+    # scheme://user:password@host  ->  scheme://[REDACTED]@host
+    # (Quantifiers on names are bounded on purpose: logs can be attacker-controlled
+    # in fork PRs, and an unbounded `[\w.-]*` backtracks quadratically on long tokens.)
+    (re.compile(r"(\b[a-z][a-z0-9+.\-]{0,20}://)[^/\s:@'\"]{1,256}:[^/\s@'\"]{1,256}@", re.I),
+     r"\1" + _R + "@"),
+    # Azure connection strings / SAS URLs
+    (re.compile(r"(?i)\b(AccountKey|SharedAccessKey|SharedAccessSignature)=[^;\s'\"]+"), r"\1=" + _R),
+    (re.compile(r"(?i)([?&]sig=)[^&\s'\"]+"), r"\1" + _R),
+    # "password": "value" (JSON / YAML with quotes); empty values are kept,
+    # because "the secret is empty" is often the actual bug.
+    (re.compile(r"(?i)(\"[\w.-]{0,40}(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|"
+                r"private[_-]?key|client[_-]?secret|credentials?)[\w.-]{0,40}\"\s*:\s*\")[^\"]+(\")"),
+     r"\1" + _R + r"\2"),
+    # KEY=value / key: value on one line. Keeps the key name and leaves values
+    # that are empty, already masked (***), or a reference like ${{ secrets.X }}.
+    (re.compile(r"(?i)(\b[\w.-]{0,40}(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|"
+                r"private[_-]?key|client[_-]?secret|credentials?)[\w.-]{0,40}[ \t]*[=:][ \t]*)"
+                r"(?!\*{3}|\$\{\{|\$\{|\$\(|\[REDACTED\])([\"']?)[^\s\"']+\2"),
+     r"\1" + _R),
+]
+
+# PEM private keys are handled line by line, not with one regex: a regex that
+# runs to the END line (or end of text) lets a lone "-----BEGIN PRIVATE KEY-----"
+# in an error message wipe out the rest of the log.
+_PEM_BEGIN = re.compile(r"-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----")
+_PEM_END = re.compile(r"-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----")
+# A key body line: base64, optionally behind a CI prefix ("job<TAB>step<TAB>",
+# a timestamp, a log level), or a PEM header such as Proc-Type / DEK-Info.
+_PEM_BODY = re.compile(
+    r"^(?:[^\t\n]{0,200}\t[^\t\n]{0,200}\t)?(?:\S{0,40}\d{4}-\d{2}-\d{2}\S{0,40} )?(?:\[\w{1,10}\] )?"
+    r"(?:[A-Za-z0-9+/=]{4,}|Proc-Type:.*|DEK-Info:.*)?\s*$"
+)
+_PEM_MAX_LINES = 120   # a 4096-bit RSA key is ~51 lines
+
+
+def _redact_pem(text: str) -> str:
+    if "PRIVATE KEY-----" not in text:
+        return text
+    lines, out, i = text.split("\n"), [], 0
+    while i < len(lines):
+        line = lines[i]
+        m = _PEM_BEGIN.search(line)
+        if not m:
+            out.append(line)
+            i += 1
+            continue
+        end_same_line = _PEM_END.search(line, m.end())
+        if end_same_line:   # one-line key, e.g. JSON with escaped \n
+            out.append(line[:m.start()] + _R + line[end_same_line.end():])
+            i += 1
+            continue
+        out.append(line[:m.start()] + _R)
+        j = i + 1
+        while j < len(lines) and j - i <= _PEM_MAX_LINES:
+            if _PEM_END.search(lines[j]):
+                j += 1
+                break
+            if not _PEM_BODY.match(lines[j]):
+                break   # not key material: stop, keep the rest of the log
+            j += 1
+        i = j
+    return "\n".join(out)
 
 
 def redact_secrets(text: str) -> str:
-    """Replace anything that looks like a secret with [REDACTED]."""
+    """Replace anything that looks like a secret with [REDACTED].
+
+    Runs on every path that sends text to the model. Covers cloud and SaaS
+    token formats (AWS, Google, GitHub, GitLab, Slack, Stripe, npm, PyPI,
+    Docker Hub, OpenAI, Anthropic), JWTs, PEM private keys, Bearer/Basic auth
+    headers, credentials in URLs, Azure keys and SAS signatures, and
+    password/token/key assignments (the key name is kept, the value removed).
+    """
+    text = _redact_pem(text)
     for pat in _SECRET_PATTERNS:
-        text = pat.sub("[REDACTED]", text)
+        text = pat.sub(_R, text)
+    for pat, repl in _SECRET_SUBS:
+        text = pat.sub(repl, text)
     return text
 
 
@@ -60,76 +154,369 @@ _ERROR_LINE = re.compile(
 )
 
 
+# High-confidence failure markers across CI tools and languages. A line that
+# matches one of these is almost certainly part of the failure.
+_STRONG_ERROR = re.compile(
+    r"##\[error\]|^\s*E\s{2,}|^FAILED\b|\bFAILED\s+\S+::|Traceback \(most recent call last\)|"
+    r"^\s*Caused by:|\[ERROR\]|BUILD FAILURE|BUILD FAILED|npm ERR!|^\s*fatal:|"
+    r"\bexit(?:ed with)? code [1-9]\d*|returned a non-zero code|"
+    r"\b\w+(?:Error|Exception)\b:|\berror(?:\[\w+\])?:|ERROR:|"
+    r"^Killed$|out of memory|OOMKilled|segmentation fault|core dumped|"
+    r"cannot find symbol|no module named|connection refused|"
+    r"ImagePullBackOff|CrashLoopBackOff|"
+    r"Execution failed for task|\bTask :\S+ FAILED|could not (?:find|resolve)\b|"
+    r"^Finished: FAILURE|<<< (?:FAILURE|ERROR)!",
+    re.I | re.M,
+)
+
+# Lines that contain an error word but report success or name a file/flag.
+_FALSE_POSITIVE = re.compile(
+    r"\b(?:0|no) (?:errors?|failures?|failed|tests? failed)\b|"
+    r"\b(?:errors?|failures?|failed)\s*[:=]\s*0\b|"
+    r"\b\w*(?:error|fail)\w*\.(?:py|java|js|ts|go|rb|kt|cs)\b|"
+    r"continue-on-error|fail-fast|ignore[-_]errors|--fail-on|-Werror|"
+    r"\bpassed\b.*\b0 failed\b",
+    re.I,
+)
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_LEADING_TIMESTAMP = re.compile(
+    r"^﻿?(?:\[?\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?\]?) ?"
+)
+
+
+def _clean_line(line: str) -> str:
+    return _LEADING_TIMESTAMP.sub("", _ANSI.sub("", line))
+
+
+def _error_strength(line: str) -> int:
+    """2 = strong failure marker, 1 = weak hint (an error-ish word), 0 = none."""
+    if _FALSE_POSITIVE.search(line):
+        return 0
+    if _STRONG_ERROR.search(line):
+        return 2
+    if _ERROR_LINE.search(line):
+        return 1
+    return 0
+
+
+# --------------------------------------------------------------------------
+# Failure fingerprint — a stable ID for "the same failure", computed in code
+# --------------------------------------------------------------------------
+# Lines that say THAT something failed but not WHAT failed. Every failure has
+# them, so they must not be part of the fingerprint or unrelated failures
+# would collide.
+_GENERIC_FAILURE = re.compile(
+    r"exit(?:ed)?(?: with)? code|returned a non-zero|build (?:failure|failed)|"
+    r"^\W*failures?\W*$|=+\s*failures\s*=+|^_+\s*\S+\s*_+$|\b(?:\d+|n) (?:failed|errors?)\b|"
+    r"finished: failure|job failed|step\b.*\bfailed|\bskipped\b|"
+    r"failure: build failed with an exception|^\W*$|"
+    # Gradle wrapper lines: identical for every Gradle failure.
+    r"execution failed for task|task :\S+ failed|could not resolve all (?:files|dependencies)|"
+    r"what went wrong",
+    re.I,
+)
+_NORMALIZERS = [
+    (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I), "<uuid>"),
+    (re.compile(r"\b0x[0-9a-f]+\b", re.I), "<hex>"),
+    (re.compile(r"\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,64}\b", re.I), "<hex>"),
+    (re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b"), "<ip>"),
+    (re.compile(r"(?:/tmp|/var/folders|/private/var)/\S*"), "<tmp>"),
+    # CI workspace prefixes, so the same file matches across runners and CI systems.
+    (re.compile(r"/home/runner/work/[^/\s]+/[^/\s]+/"), ""),            # GitHub Actions
+    (re.compile(r"/github/workspace/"), ""),                            # GHA container jobs
+    (re.compile(r"/var/lib/jenkins/workspace/[^/\s]+/"), ""),           # Jenkins
+    (re.compile(r"/builds/[^/\s]+/[^/\s]+/"), ""),                      # GitLab
+    (re.compile(r"[a-z]:\\actions-runner\\_work\\[^\\\s]+\\[^\\\s]+\\", re.I), ""),  # Windows runner
+    (re.compile(r"\b\d+(?:\.\d+)?\s?(?:ms|s|sec|seconds|m|min)\b"), "<dur>"),
+    (re.compile(r":\d+"), ":N"),                       # file:line:col
+    # Other standalone numbers -> N, but keep HTTP-style status codes (401 vs
+    # 500 are different failures) and rule codes like F401 (no word boundary).
+    (re.compile(r"\b(?![1-5]\d\d\b)\d+\b"), "N"),
+    # Log-level / pytest prefixes, possibly stacked ("[ERROR] E   ...").
+    (re.compile(r"^\s*(?:(?:##\[error\]|\[error\]|error:|e\s{2,})\s*)+", re.I), ""),
+    (re.compile(r"\s+"), " "),
+]
+
+
+def _normalize_error(line: str) -> str:
+    """Strip the parts of an error line that change between runs (timestamps,
+    numbers, hashes, temp paths, runner workspace paths, durations) so the same
+    failure produces the same text every time."""
+    text = _clean_line(line).strip().lower()
+    for pat, repl in _NORMALIZERS:
+        text = pat.sub(repl, text)
+    return text.strip()
+
+
+def _fingerprint(basis: list) -> str:
+    joined = "\n".join(basis).encode()
+    return hashlib.sha1(joined, usedforsecurity=False).hexdigest()[:12] if basis else ""
+
+
+def _log_fingerprint(lines: list, max_lines: int = 3) -> tuple:
+    """Fingerprint a log from its first specific error lines. Returns
+    (fingerprint, basis) where basis is the normalized lines that were hashed."""
+    for wanted in (2, 1):   # strong errors first, weak hints as a fallback
+        basis = []
+        for ln in lines:
+            if _error_strength(ln) != wanted:
+                continue
+            norm = _normalize_error(ln)
+            if _GENERIC_FAILURE.search(norm):
+                continue
+            if len(norm) >= 8 and norm not in basis:
+                basis.append(norm)
+            if len(basis) == max_lines:
+                break
+        if basis:
+            return _fingerprint(basis), basis
+    return "", []
+
+
+_LOG_LIMIT = 200          # logs at or under this many lines are returned whole
+_LOG_HEAD = 10            # first lines (tool / runner versions)
+_LOG_TAIL = 60            # last lines (the final failure + exit code)
+_WIN_BEFORE, _WIN_AFTER = 6, 3
+_LOG_BUDGET = 260         # max lines returned for a long log
+_FIRST_ERRORS = 5         # earliest strong errors always kept (root cause of cascades)
+
+
+def _select_log_lines(lines: list) -> tuple:
+    """Pick which lines of a long log to keep. Returns (kept_indices, stats)."""
+    n = len(lines)
+    strengths = [_error_strength(ln) for ln in lines]
+    strong = [i for i, s in enumerate(strengths) if s == 2]
+    weak = [i for i, s in enumerate(strengths) if s == 1]
+    hits = strong or weak   # fall back to weak hints only if nothing strong
+
+    keep = set(range(min(_LOG_HEAD, n))) | set(range(max(0, n - _LOG_TAIL), n))
+
+    def window(i):
+        return set(range(max(0, i - _WIN_BEFORE), min(n, i + _WIN_AFTER + 1)))
+
+    # The earliest errors usually hold the root cause (later ones cascade);
+    # after those, add windows from the END backwards until the budget is spent.
+    order = hits[:_FIRST_ERRORS] + list(reversed(hits[_FIRST_ERRORS:]))
+    for i in order:
+        w = window(i)
+        if len(keep | w) > _LOG_BUDGET:
+            continue
+        keep |= w
+    return keep, {"strong_error_lines": len(strong), "weak_error_lines": len(weak)}
+
+
+def _render(lines: list, keep: set) -> list:
+    out, prev = [], -1
+    for i in sorted(keep):
+        if i != prev + 1:
+            out.append(f"... ({i - prev - 1} lines omitted) ...")
+        out.append(lines[i])
+        prev = i
+    if prev < len(lines) - 1:
+        out.append(f"... ({len(lines) - 1 - prev} lines omitted) ...")
+    return out
+
+
+_MAX_LOG_BYTES = 20 * 1024 * 1024     # larger logs keep their first 5 MB + last 15 MB
+_MAX_XML_BYTES = 50 * 1024 * 1024     # larger JUnit reports are refused
+
+
+def _open_regular_file(file_path: str):
+    """Resolve and check a path before reading it. Only regular files are read,
+    so a device or pipe (e.g. /dev/zero) can't hang the reviewer or exhaust
+    memory. Returns (path, size, error)."""
+    path = _resolve(file_path)
+    if not os.path.exists(path):
+        return path, 0, f"file not found: {file_path}"
+    if not os.path.isfile(path):
+        return path, 0, f"not a regular file: {file_path}"
+    return path, os.path.getsize(path), None
+
+
+def _read_capped(file_path: str, cap: int) -> tuple:
+    """Read a text file without ever holding more than `cap` bytes of it.
+    Returns (text, error)."""
+    path, size, err = _open_regular_file(file_path)
+    if err:
+        return "", err.replace("file not found", "log file not found")
+    with open(path, "rb") as f:
+        if size <= cap:
+            data = f.read(cap)   # still bounded, in case the file is growing
+        else:
+            head = f.read(cap // 4)
+            f.seek(-(cap - cap // 4), os.SEEK_END)
+            omitted = size - cap
+            data = head + f"\n... ({omitted} bytes omitted: log too large) ...\n".encode() + f.read()
+    return data.decode("utf-8", errors="replace"), None
+
+
 def read_log(file_path: str) -> dict:
     """Read any CI/CD or build/console log and return its redacted text.
 
-    Use for any non-XML log from any CI tool. Secrets are stripped first. Long
-    logs are trimmed to the first 120 + last 80 lines, but any error/failure
-    lines from the omitted middle are ALSO surfaced, so a mid-log root cause is
-    never dropped just because of where it appears.
+    Use for any non-XML log from any CI tool. Secrets are stripped first, along
+    with ANSI colour codes and leading timestamps. Logs over 200 lines are
+    excerpted: the first 10 lines, the last 60, and a window of context around
+    each real error line (strong markers like '##[error]', 'Traceback',
+    'BUILD FAILURE', 'Caused by:'; weak hints only if there are no strong
+    ones). Lines like '0 errors' or 'error_handler.py' are not treated as
+    errors. The earliest errors are always kept, since later ones often cascade
+    from the first.
 
     Args:
         file_path: path to the log / console-output file.
     """
-    try:
-        with open(_resolve(file_path)) as f:
-            raw = f.read()
-    except FileNotFoundError:
-        return {"error": f"log file not found: {file_path}"}
+    raw, err = _read_capped(file_path, _MAX_LOG_BYTES)
+    if err:
+        return {"error": err}
 
-    text = redact_secrets(raw)
-    lines = text.splitlines()
+    lines = [_clean_line(ln) for ln in redact_secrets(raw).splitlines()]
     total = len(lines)
-    if total > 200:
-        head, tail, middle = lines[:120], lines[-80:], lines[120:total - 80]
-        errors = [ln for ln in middle if _ERROR_LINE.search(ln)]
-        if errors:
-            lines = (head
-                     + [f"... ({len(middle)} lines omitted; {len(errors)} error line(s) surfaced) ..."]
-                     + errors[:40]
-                     + ["..."]
-                     + tail)
-        else:
-            lines = head + [f"... ({len(middle)} lines omitted) ..."] + tail
-    return {"artifact_type": "raw_log", "line_count": total, "log_text": "\n".join(lines)}
+    fp, basis = _log_fingerprint(lines)
+    result = {"artifact_type": "raw_log", "line_count": total,
+              "fingerprint": fp, "fingerprint_basis": basis}
+    if total <= _LOG_LIMIT:
+        result["log_text"] = "\n".join(lines)
+        return result
+
+    keep, stats = _select_log_lines(lines)
+    result.update(stats)
+    result["lines_shown"] = len(keep)
+    result["log_text"] = "\n".join(_render(lines, keep))
+    return result
 
 
 # --------------------------------------------------------------------------
 # JUnit / pytest XML parser (universal across CI tools)
 # --------------------------------------------------------------------------
+_MAX_REPORTED_TESTS = 25   # cap per category so a mass failure can't flood the context
+_TRACE_HEAD, _TRACE_TAIL = 1000, 500
+_OUTPUT_TAIL = 600
+
+
+def _clip_trace(text: str) -> str:
+    """Keep the top of a stack trace (where it failed) AND the bottom (the
+    'Caused by' chain in Java), dropping only the middle."""
+    text = redact_secrets((text or "").strip())
+    if len(text) <= _TRACE_HEAD + _TRACE_TAIL:
+        return text
+    return text[:_TRACE_HEAD] + "\n... (trace trimmed) ...\n" + text[-_TRACE_TAIL:]
+
+
+def _captured_output(case, tag: str) -> str:
+    """Last part of a testcase's <system-out>/<system-err>, redacted."""
+    el = case.find(tag)
+    if el is None or not (el.text or "").strip():
+        return ""
+    return redact_secrets(el.text.strip())[-_OUTPUT_TAIL:]
+
+
+def _problem_entry(case, el, kind: str) -> dict:
+    entry = {
+        "name": case.get("name"),
+        "classname": case.get("classname"),
+        "kind": kind,                       # "failure" | "error" | "flaky"
+        "type": el.get("type") or "",       # e.g. AssertionError, NullPointerException
+        "message": redact_secrets(el.get("message") or ""),
+        "trace": _clip_trace(el.text),
+    }
+    if case.get("file"):
+        entry["file"] = case.get("file")
+    if case.get("line"):
+        entry["line"] = case.get("line")
+    out, err = _captured_output(case, "system-out"), _captured_output(case, "system-err")
+    if out:
+        entry["stdout_tail"] = out
+    if err:
+        entry["stderr_tail"] = err
+    return entry
+
+
+_EXC_NAME = re.compile(r"\b([A-Za-z_][\w.]*(?:Error|Exception|Failure))\b")
+
+
+def _exception_type(test: dict) -> str:
+    """The exception class: the `type` attribute, or parsed from the message."""
+    if test.get("type"):
+        return test["type"].rsplit(".", 1)[-1]
+    m = _EXC_NAME.search(test.get("message") or "")
+    return m.group(1).rsplit(".", 1)[-1] if m else ""
+
+
 def parse_junit_results(file_path: str) -> dict:
-    """Parse a JUnit/pytest XML report and list the failing tests.
+    """Parse a JUnit/pytest/Surefire XML report and list the problem tests.
+
+    Distinguishes:
+      - failures: an assertion did not hold (<failure>).
+      - errors:   the test crashed before/while running, e.g. an exception in
+                  setup, a fixture, or an import (<error>) — often an
+                  environment or config problem rather than wrong logic.
+      - flaky:    failed at first but passed on rerun (Maven Surefire
+                  <flakyFailure>/<flakyError>).
+      - skipped:  counted, not listed.
 
     Args:
         file_path: path to the JUnit XML results file.
     """
+    path, size, err = _open_regular_file(file_path)
+    if err:
+        return {"error": err.replace("file not found", "results file not found")}
+    if size > _MAX_XML_BYTES:
+        return {"error": f"results file too large ({size} bytes; limit {_MAX_XML_BYTES})"}
     try:
-        tree = ET.parse(_resolve(file_path))
-    except FileNotFoundError:
-        return {"error": f"results file not found: {file_path}"}
+        tree = ET.parse(path)
     except ET.ParseError as e:
         return {"error": f"could not parse XML: {e}"}
 
     root = tree.getroot()
-    total = failures = 0
-    failed_tests = []
+    total = failures = errors = skipped = flaky = 0
+    failed_tests, errored_tests, flaky_tests = [], [], []
     for case in root.iter("testcase"):
         total += 1
-        fail = case.find("failure")
+        fail, err = case.find("failure"), case.find("error")
+        flaky_el = case.find("flakyFailure")
+        if flaky_el is None:
+            flaky_el = case.find("flakyError")
         if fail is not None:
             failures += 1
-            failed_tests.append({
-                "name": case.get("name"),
-                "classname": case.get("classname"),
-                "message": redact_secrets(fail.get("message") or ""),
-                "trace": redact_secrets((fail.text or "").strip())[:500],
-            })
-    return {
+            if len(failed_tests) < _MAX_REPORTED_TESTS:
+                failed_tests.append(_problem_entry(case, fail, "failure"))
+        elif err is not None:
+            errors += 1
+            if len(errored_tests) < _MAX_REPORTED_TESTS:
+                errored_tests.append(_problem_entry(case, err, "error"))
+        elif flaky_el is not None:
+            flaky += 1
+            if len(flaky_tests) < _MAX_REPORTED_TESTS:
+                flaky_tests.append(_problem_entry(case, flaky_el, "flaky"))
+        elif case.find("skipped") is not None:
+            skipped += 1
+
+    result = {
         "artifact_type": "junit_results",
         "total_tests": total,
+        "passed": total - failures - errors - skipped,
         "failures": failures,
+        "errors": errors,
+        "skipped": skipped,
+        "flaky_passed_on_rerun": flaky,
         "failed_tests": failed_tests,
+        "errored_tests": errored_tests,
     }
+    if flaky_tests:
+        result["flaky_tests"] = flaky_tests
+    # Fingerprint = which tests broke and with what exception type. Flaky
+    # (passed-on-rerun) tests are left out: they are not the failure.
+    basis = sorted({
+        f"{t['classname']}::{t['name']}|{_exception_type(t)}".lower()
+        for t in failed_tests + errored_tests
+    })
+    result["fingerprint"] = _fingerprint(basis)
+    result["fingerprint_basis"] = basis
+    listed = len(failed_tests) + len(errored_tests)
+    if failures + errors > listed:
+        result["note"] = f"showing {listed} of {failures + errors} failing/erroring tests"
+    return result
 
 
 # --------------------------------------------------------------------------
@@ -277,39 +664,83 @@ def _avg_interval_str(occurrences: list) -> str:
     return f"~{avg / 86400:.1f} days between occurrences"
 
 
-def check_recurrence(signature: str, suggested_fix: str = "") -> dict:
+_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{12}$")
+_MAX_OCCURRENCES = 50   # per failure; older timestamps are dropped
+
+
+def _load_store() -> dict:
+    try:
+        with open(MEMORY_FILE) as f:
+            store = json.load(f)
+        return store if isinstance(store, dict) else {}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_store(store: dict) -> None:
+    """Write atomically, so a crash or a parallel job can't leave half a file.
+
+    The temp file comes from mkstemp (random name, created with O_EXCL), so a
+    file or symlink planted at a guessable name can't redirect the write.
+    """
+    directory = os.path.dirname(os.path.abspath(MEMORY_FILE))
+    os.makedirs(directory, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".failures-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(store, f, indent=2)
+        os.replace(tmp, MEMORY_FILE)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def check_recurrence(signature: str, suggested_fix: str = "", fingerprint: str = "") -> dict:
     """Record this failure and report how often it has happened before, plus the
     fix suggested LAST time. This is the agent's persistent memory across runs,
     so a recurring failure is recognised.
 
-    Args:
-        signature: a short STABLE identifier (failing test name, or
-            "dependency: <package>"). Must be the same each time the failure recurs.
-        suggested_fix: the fix you are proposing now (stored for next time).
-    """
-    os.makedirs(os.path.dirname(MEMORY_FILE), exist_ok=True)
-    try:
-        store = json.load(open(MEMORY_FILE))
-    except (FileNotFoundError, json.JSONDecodeError):
-        store = {}
+    Pass the `fingerprint` returned by read_log / parse_junit_results /
+    fetch_github_actions_log whenever there is one: it is computed in code from
+    the normalized error text, so the same failure always gets the same ID no
+    matter how it is described. `signature` is then only a human-readable label.
 
-    key = re.sub(r"\s+", " ", signature.strip().lower())[:200]
+    Args:
+        signature: a short label for the failure (failing test name, or
+            "dependency: <package>"). Used as the key only when no fingerprint.
+        suggested_fix: the fix you are proposing now (stored for next time).
+        fingerprint: the 12-character fingerprint from the evidence tool.
+    """
+    fp = (fingerprint or "").strip().lower()
+    label = re.sub(r"\s+", " ", signature.strip().lower())[:200]
+    if _FINGERPRINT_RE.match(fp):
+        key, matched_by = f"fp:{fp}", "fingerprint"
+    else:
+        # No (valid) fingerprint: fall back to the label. Same key format as
+        # before, so existing memory files keep working.
+        key, matched_by = label, "signature"
+
+    store = _load_store()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     entry = store.get(key, {"count": 0, "first_seen": now, "occurrences": [], "last_fix": ""})
 
     times_before = entry["count"]
     previous_fix = entry.get("last_fix", "")
+    previous_label = entry.get("label", "")
 
     entry["count"] += 1
     entry["last_seen"] = now
-    entry.setdefault("occurrences", []).append(now)
+    entry["label"] = label
+    entry["occurrences"] = (entry.get("occurrences", []) + [now])[-_MAX_OCCURRENCES:]
     if suggested_fix:
         entry["last_fix"] = suggested_fix.strip()[:300]
     store[key] = entry
-    json.dump(store, open(MEMORY_FILE, "w"), indent=2)
+    _save_store(store)
 
-    return {
-        "signature": key,
+    result = {
+        "signature": label,
+        "matched_by": matched_by,
         "times_seen_before": times_before,
         "is_recurring": times_before > 0,
         "first_seen": entry["first_seen"],
@@ -317,26 +748,128 @@ def check_recurrence(signature: str, suggested_fix: str = "") -> dict:
         "previous_fix": previous_fix or None,
         "recurrence_interval": _avg_interval_str(entry["occurrences"]) or None,
     }
+    if matched_by == "fingerprint":
+        result["fingerprint"] = fp
+        if previous_label and previous_label != label:
+            result["previously_described_as"] = previous_label
+    elif fp:
+        result["note"] = f"ignored invalid fingerprint {fingerprint!r}; matched on signature"
+    return result
 
 
 # --------------------------------------------------------------------------
 # Fetch a run's logs DIRECTLY from GitHub Actions (no local file needed)
 # --------------------------------------------------------------------------
+_CONTEXT_BEFORE, _CONTEXT_AFTER = 8, 4   # lines kept around each error line
+_STEP_TAIL = 25                           # last lines of a failed step (exit code lives here)
+_MAX_STEP_LINES = 120
+_MAX_TOTAL_LINES = 300
+
+
+def _gh(args: list, timeout: int = 60):
+    return subprocess.run(["gh", *args], capture_output=True, text=True, timeout=timeout)
+
+
+# The agent chooses these arguments, and log text it reads can try to steer it.
+# Validate them strictly so a value like "--web" or "--repo=other/repo" can never
+# be read by gh as a flag.
+_REPO_ARG = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/(?!\.\.?$)[A-Za-z0-9._-]{1,100}$")
+_NUMBER_ARG = re.compile(r"^[0-9]{1,20}$")
+
+
+def _bad_gh_args(repo, number, what: str):
+    """Return an error message if repo / number are not safe to pass to gh."""
+    if not _REPO_ARG.match(str(repo or "")):
+        return f"invalid repo {str(repo)[:60]!r}: expected 'owner/repo'"
+    if not _NUMBER_ARG.match(str(number or "")):
+        return f"invalid {what} {str(number)[:30]!r}: expected digits only"
+    return None
+
+
+def _split_gha_line(line: str) -> tuple:
+    """`gh run view --log` prints 'JOB<TAB>STEP<TAB>TIMESTAMP text'. Return
+    (job, step, text) with the timestamp and ANSI colour codes stripped."""
+    parts = line.split("\t", 2)
+    if len(parts) == 3:
+        job, step, text = parts
+    else:
+        job, step, text = "", "", line
+    return job.strip(), step.strip(), _clean_line(text)
+
+
+def _excerpt(lines: list) -> list:
+    """Windows of context around error lines, plus the step's tail, with
+    gaps marked. The tail matters: the real cause often sits just above
+    'Process completed with exit code N'."""
+    n = len(lines)
+    keep = set(range(max(0, n - _STEP_TAIL), n))
+    strengths = [_error_strength(ln) for ln in lines]
+    best = 2 if 2 in strengths else 1   # weak hints only when nothing is strong
+    for i, s in enumerate(strengths):
+        if s == best:
+            keep.update(range(max(0, i - _CONTEXT_BEFORE), min(n, i + _CONTEXT_AFTER + 1)))
+    out, prev = [], -1
+    for i in sorted(keep):
+        if i != prev + 1:
+            out.append(f"... ({i - prev - 1} lines omitted) ...")
+        out.append(lines[i])
+        prev = i
+    if len(out) > _MAX_STEP_LINES:   # keep the end, where the failure surfaces
+        out = [f"... (excerpt trimmed to last {_MAX_STEP_LINES} lines) ..."] + out[-_MAX_STEP_LINES:]
+    return out
+
+
+def _run_metadata(repo: str, run_id: str) -> dict:
+    """Workflow name, branch, commit and which jobs/steps failed. Best-effort."""
+    try:
+        r = _gh(["run", "view", str(run_id), "--repo", repo, "--json",
+                 "workflowName,event,headBranch,headSha,conclusion,jobs"])
+        if r.returncode != 0:
+            return {}
+        data = json.loads(r.stdout)
+    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
+        return {}
+    failed_jobs = []
+    for job in data.get("jobs") or []:
+        if job.get("conclusion") in ("failure", "timed_out", "cancelled"):
+            failed_jobs.append({
+                "job": job.get("name"),
+                "conclusion": job.get("conclusion"),
+                "failed_steps": [s.get("name") for s in job.get("steps") or []
+                                 if s.get("conclusion") in ("failure", "timed_out")],
+            })
+    return {
+        "workflow": data.get("workflowName"),
+        "event": data.get("event"),
+        "branch": data.get("headBranch"),
+        "commit": (data.get("headSha") or "")[:12],
+        "conclusion": data.get("conclusion"),
+        "failed_jobs": failed_jobs,
+    }
+
+
 def fetch_github_actions_log(repo: str, run_id: str) -> dict:
     """Fetch a failed GitHub Actions run's logs directly, via the gh CLI.
 
-    Lets the agent review a run WITHOUT downloading a file first. Secrets are
-    redacted; output is trimmed to the error/failure lines.
+    Lets the agent review a run WITHOUT downloading a file first. Pulls only
+    the FAILED steps (`--log-failed`, falling back to the full log), groups the
+    output by job and step, and keeps context around each error plus the end
+    of each failed step. Also returns run metadata (workflow, branch, commit,
+    which jobs/steps failed). Secrets are redacted.
 
     Args:
         repo: 'owner/repo' (e.g. 'NavyaSivakoti/demo-app').
         run_id: the numeric run id.
     """
+    bad = _bad_gh_args(repo, run_id, "run id")
+    if bad:
+        return {"error": bad}
+    source = "failed_steps"
     try:
-        out = subprocess.run(
-            ["gh", "run", "view", str(run_id), "--repo", repo, "--log"],
-            capture_output=True, text=True, timeout=60,
-        )
+        out = _gh(["run", "view", str(run_id), "--repo", repo, "--log-failed"])
+        if out.returncode != 0 or not out.stdout.strip():
+            source = "full_log"
+            out = _gh(["run", "view", str(run_id), "--repo", repo, "--log"])
     except FileNotFoundError:
         return {"error": "gh CLI not available in this environment"}
     except subprocess.TimeoutExpired:
@@ -344,17 +877,43 @@ def fetch_github_actions_log(repo: str, run_id: str) -> dict:
     if out.returncode != 0:
         return {"error": f"gh failed: {out.stderr[:200]}"}
 
-    text = redact_secrets(out.stdout)
-    lines = text.splitlines()
-    important = [ln for ln in lines if _ERROR_LINE.search(ln)]
-    shown = important[:80] or lines[-80:]
-    return {
+    raw_lines = redact_secrets(out.stdout).splitlines()
+    steps: dict = {}   # (job, step) -> lines, in log order
+    for line in raw_lines:
+        job, step, text = _split_gha_line(line)
+        steps.setdefault((job, step), []).append(text)
+
+    failed_steps, rendered, budget = [], [], _MAX_TOTAL_LINES
+    for (job, step), lines in steps.items():
+        excerpt = _excerpt(lines)
+        failed_steps.append({"job": job, "step": step, "line_count": len(lines)})
+        header = f"### {job} / {step}" if (job or step) else "### log"
+        rendered.append((header, excerpt))
+    # Fill the line budget from the LAST step backwards: the failure is usually last.
+    out_lines = []
+    for header, excerpt in reversed(rendered):
+        if budget <= 0:
+            out_lines.insert(0, "... (earlier steps omitted to fit the budget) ...")
+            break
+        block = [header] + excerpt[-budget:]
+        budget -= len(block)
+        out_lines = block + out_lines
+
+    result = {
         "artifact_type": "github_actions_log",
         "repo": repo,
         "run_id": str(run_id),
-        "line_count": len(lines),
-        "log_text": "\n".join(shown[:120]),
+        "source": source,
+        "line_count": len(raw_lines),
+        "steps": failed_steps,
+        "log_text": "\n".join(out_lines),
     }
+    fp, basis = _log_fingerprint([ln for lines in steps.values() for ln in lines])
+    result["fingerprint"], result["fingerprint_basis"] = fp, basis
+    meta = _run_metadata(repo, run_id)
+    if meta:
+        result["run"] = meta
+    return result
 
 
 # --------------------------------------------------------------------------
@@ -368,6 +927,9 @@ def get_pr_changes(repo: str, pr_number: str) -> dict:
         repo: 'owner/repo' (e.g. 'NavyaSivakoti/demo-app').
         pr_number: the pull-request number.
     """
+    bad = _bad_gh_args(repo, pr_number, "PR number")
+    if bad:
+        return {"error": bad}
     try:
         names = subprocess.run(
             ["gh", "pr", "diff", str(pr_number), "--repo", repo, "--name-only"],
