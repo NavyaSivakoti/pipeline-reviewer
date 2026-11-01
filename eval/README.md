@@ -33,6 +33,17 @@ gate fails if the average composite score < 0.80.
 
 CI secrets: `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`.
 
+## Run it from GitHub (no local setup)
+1. Add the repository secret `GEMINI_API_KEY` (Settings → Secrets and variables →
+   Actions). Add `ANTHROPIC_API_KEY` too if you want the judge's grades.
+2. Actions tab → **eval** → **Run workflow**. Pick the cases (the 5 `pr_gate` cases fit
+   the free Gemini quota; all 11 need a paid key), the judge on/off, and the model.
+3. The scores appear on the run's summary page; the reviews and full log are in the
+   `eval-results` artifact. The run fails if the composite score is below 0.80.
+
+The `pr-eval` check can't do this for pull requests from forks: GitHub doesn't give
+repository secrets to fork PRs, so those runs have no key.
+
 ## Commands
 
 ```bash
