@@ -125,6 +125,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same PR cancels the older run, so reviews don't race.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test-and-review:
     runs-on: ubuntu-24.04   # pinned: ubuntu-latest is moving to Ubuntu 26
@@ -208,6 +213,14 @@ jobs:
 ```
 Untrusted values (PR author, SHAs, numbers) are passed through `env:` and quoted, never
 pasted into `run:` with `${{ }}`, so they can't inject shell commands.
+
+- **`--sha "$HEAD_SHA"`** also guards against races: if the PR has moved past that
+  commit by the time the review is ready, nothing is posted (the newer run will post),
+  so a slow old run can't overwrite a newer review. Pass the PR head SHA, never
+  `GITHUB_SHA` (on `pull_request` events that is a temporary merge commit).
+- **Matrix builds:** add `--key "${{ matrix.python }}"` (or the job name, via `env:`) to
+  every `post_review.py` call, so each matrix job keeps its own comment instead of
+  overwriting the others'.
 
 ## Evaluation Results
 `eval/run_eval.py` scores the agent on **16 labelled scenarios**. Each review is graded
