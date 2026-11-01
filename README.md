@@ -282,7 +282,11 @@ release. **See
   but not another PR's.
 - Free-tier Gemini is rate-limited and occasionally overloaded (429/503), and can
   return a blank/truncated review; the runner retries on all of these and posts an
-  honest "re-run" placeholder rather than a mangled comment.
+  honest "re-run" placeholder rather than a mangled comment. It stops at once when
+  the **daily** quota is used up (waiting can't fix that), and caps the total retry
+  wait at 300s (`REVIEW_MAX_RETRY_WAIT`) so a CI job never hangs on a busy model.
+  If a review already exists in the PR comment, a placeholder doesn't replace it:
+  the comment keeps the last real review and notes that the latest run wasn't reviewed.
 
 ### Recurrence memory in CI
 Failures are matched by a **fingerprint computed in code** from the normalized error

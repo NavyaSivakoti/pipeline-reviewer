@@ -26,6 +26,7 @@ import re
 import subprocess
 import sys
 
+from notices import is_no_review
 from sanitize import sanitize_review
 
 MARKER = "<!-- pipeline-reviewer:sticky -->"
@@ -124,6 +125,21 @@ def build_resolved_body(previous_body: str, sha: str = None, run_url: str = None
     return "\n\n".join(parts)
 
 
+def build_kept_review_body(previous_body: str, notice: str, author: str = None,
+                           sha: str = None, run_url: str = None) -> str:
+    """A run produced no review (quota, rate limit, bad output): keep the last
+    real review in the comment and say the latest run wasn't reviewed, rather
+    than replacing a useful review with an apology."""
+    intro = (f"cc @{author} — CI failed on your PR." if author else "CI failed.")
+    commit = f" for commit {sha[:7]}" if sha else ""
+    parts = [MARKER, HEADER, intro,
+             f"⚠️ **No new review{commit}.** {sanitize_review(notice).strip()}\n\n"
+             "The review below is from an earlier run.",
+             f"{REVIEW_START}\n{sanitize_review(extract_review(previous_body))}\n{REVIEW_END}",
+             _footer(sha, run_url)]
+    return "\n\n".join(parts)
+
+
 def default_run_url():
     """Link to this workflow run, built from the Actions environment."""
     server = os.environ.get("GITHUB_SERVER_URL", "")
@@ -143,10 +159,13 @@ def upsert(repo, pr=None, commit=None, review=None, resolved=False, author=None,
     paths = _target_paths(repo, pr, commit)
     existing = None if (dry_run and not resolved) else find_sticky(paths["list"], bot_login)
 
+    previous_review = extract_review((existing or {}).get("body") or "")
     if resolved:
         if not existing:
             return "nothing to resolve (no reviewer comment found)"
         body = build_resolved_body(existing.get("body") or "", sha, run_url)
+    elif is_no_review(review) and previous_review and not is_no_review(previous_review):
+        body = build_kept_review_body(existing.get("body") or "", review, author, sha, run_url)
     else:
         body = build_failure_body(review or "", author, sha, run_url)
 

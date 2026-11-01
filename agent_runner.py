@@ -25,7 +25,7 @@ from pydantic import ValidationError
 
 import tools
 from agent import root_agent
-from review_schema import coerce_review
+from review_schema import NO_REVIEW_PREFIX, coerce_review
 
 APP = "pipeline_reviewer"
 USER = "local_user"
@@ -34,11 +34,30 @@ _TRANSIENT = ("RESOURCE_EXHAUSTED", "UNAVAILABLE", "503", "429")
 # A complete review has its first (Failure Type) and last (Confidence) sections.
 # If either is missing, the free tier returned a blank or truncated response.
 _REQUIRED = ("Failure Type", "Confidence")
+# Every "no review" notice starts with NO_REVIEW_PREFIX, so post_review.py can
+# recognise one and keep the previous review instead of overwriting it.
 _FALLBACK = (
-    "_The AI Pipeline Reviewer could not produce a complete review this run "
-    "(the free-tier model was rate-limited or returned an incomplete response). "
+    f"{NO_REVIEW_PREFIX} a complete review this run "
+    "(the model was rate-limited or returned an incomplete response). "
     "Please re-run the job to try again._"
 )
+_QUOTA_FALLBACK = (
+    f"{NO_REVIEW_PREFIX} a review this run: the Gemini API's **daily quota is used up**. "
+    "Re-run the job after the quota resets, or use a paid API key._"
+)
+
+# A daily quota can't recover within a CI job, so retrying only holds the job.
+# Google reports the quota in the error, e.g. GenerateRequestsPerDayPerProjectPerModel.
+_DAILY_QUOTA = re.compile(r"PerDay|per[ _-]day\b|daily (?:quota|limit)", re.I)
+
+# Upper bound on the total time spent waiting between retries in one review,
+# so a CI job never sits for many minutes on a busy or rate-limited model.
+MAX_RETRY_WAIT = float(os.environ.get("REVIEW_MAX_RETRY_WAIT", "300"))
+
+
+def _budget_fallback(seconds: float) -> str:
+    return (f"{NO_REVIEW_PREFIX} a review this run: the model stayed rate-limited or busy "
+            f"past the {seconds:.0f}s retry budget. Please re-run the job later._")
 
 
 def _is_complete(review: str) -> bool:
@@ -82,6 +101,11 @@ def build_message(paths: list[str], pr_ref: str | None = None) -> str:
 
 def _is_transient(err: Exception) -> bool:
     return any(tok in str(err) for tok in _TRANSIENT)
+
+
+def _is_daily_quota(err: Exception) -> bool:
+    s = str(err)
+    return ("429" in s or "RESOURCE_EXHAUSTED" in s) and bool(_DAILY_QUOTA.search(s))
 
 
 def _retry_delay(err: Exception, fallback: float) -> float:
@@ -129,44 +153,58 @@ def run_agent(paths: list[str], on_event=None, max_retries: int = 6, pr_ref: str
 
 def _run_with_retries(paths, on_event, max_retries, pr_ref) -> dict:
     delay = 10.0
+    waited = 0.0
     loop = _ensure_loop()
+
+    def wait(seconds: float, why: str, attempt: int) -> bool:
+        """Sleep before the next attempt, unless that would blow the budget."""
+        nonlocal waited
+        if waited + seconds > MAX_RETRY_WAIT:
+            print(f"   {why}; next wait ({seconds:.0f}s) would exceed the {MAX_RETRY_WAIT:.0f}s "
+                  "retry budget; giving up", file=sys.stderr)
+            return False
+        print(f"   {why}; waiting {seconds:.0f}s then retry ({attempt}/{max_retries})", file=sys.stderr)
+        time.sleep(seconds)
+        waited += seconds
+        return True
+
     for attempt in range(1, max_retries + 1):
         try:
             state = loop.run_until_complete(_run_once(paths, on_event, pr_ref))
         except Exception as err:  # noqa: BLE001
-            if _is_transient(err) and attempt < max_retries:
-                wait = _retry_delay(err, delay)
+            if _is_daily_quota(err):
+                print("   429: the API's daily quota is used up; not retrying", file=sys.stderr)
+                return {"review": _QUOTA_FALLBACK, "review_error": "daily_quota"}
+            if _is_transient(err):
                 kind = "429 rate-limit" if ("429" in str(err) or "RESOURCE_EXHAUSTED" in str(err)) else "503 busy"
-                print(f"   {kind}; waiting {wait:.0f}s then retry ({attempt}/{max_retries})", file=sys.stderr)
-                time.sleep(wait)
-                delay = min(delay * 1.5, 65)
-                continue
+                if attempt < max_retries and wait(_retry_delay(err, delay), kind, attempt):
+                    delay = min(delay * 1.5, 65)
+                    continue
+                return {"review": _budget_fallback(MAX_RETRY_WAIT), "review_error": "retries_exhausted"}
             # ADK validates the final answer against the Review schema and
             # raises if the model's JSON doesn't fit: retry like a bad review.
-            if isinstance(err, (ValidationError, json.JSONDecodeError)) and attempt < max_retries:
-                print(f"   review did not match the schema; waiting {delay:.0f}s then retry "
-                      f"({attempt}/{max_retries})", file=sys.stderr)
-                time.sleep(delay)
-                delay = min(delay * 1.5, 65)
-                continue
+            if isinstance(err, (ValidationError, json.JSONDecodeError)):
+                if attempt < max_retries and wait(delay, "review did not match the schema", attempt):
+                    delay = min(delay * 1.5, 65)
+                    continue
+                return {"review": _FALLBACK, "review_error": "invalid_output"}
             raise
 
-        # The call succeeded, but the free tier can still return a blank,
+        # The call succeeded, but the model can still return a blank,
         # truncated or schema-breaking review. Treat that like a transient
         # error and retry.
         if _finalize(state) and _is_complete(state.get("review", "")):
             return state
-        if attempt < max_retries:
-            print(f"   review blank/incomplete; waiting {delay:.0f}s then retry ({attempt}/{max_retries})", file=sys.stderr)
-            time.sleep(delay)
+        if attempt < max_retries and wait(delay, "review blank/incomplete", attempt):
             delay = min(delay * 1.5, 65)
             continue
 
-        # Still incomplete after every retry — post an honest placeholder,
+        # Still incomplete after every retry: post an honest placeholder,
         # never a mangled half-review.
         state["review"] = _FALLBACK
+        state["review_error"] = "incomplete"
         return state
-    raise RuntimeError("exhausted retries")
+    return {"review": _FALLBACK, "review_error": "incomplete"}
 
 
 def print_report(state: dict) -> None:

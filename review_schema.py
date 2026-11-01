@@ -14,6 +14,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from notices import NO_REVIEW_PREFIX, is_no_review  # noqa: F401  (re-exported)
+
 
 class FailureType(str, Enum):
     test_failure = "test_failure"
