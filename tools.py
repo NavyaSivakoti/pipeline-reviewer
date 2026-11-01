@@ -276,7 +276,8 @@ def _error_strength(line: str) -> int:
 # would collide.
 _GENERIC_FAILURE = re.compile(
     r"exit(?:ed)?(?: with)? code|returned a non-zero|build (?:failure|failed)|"
-    r"^\W*failures?\W*$|=+\s*failures\s*=+|^_+\s*\S+\s*_+$|\b(?:\d+|n) (?:failed|errors?)\b|"
+    # "2 failed", "3 errors in 4s" are counts; "#2 ERROR: <details>" (BuildKit) is not.
+    r"^\W*failures?\W*$|=+\s*failures\s*=+|^_+\s*\S+\s*_+$|(?<!#)\b(?:\d+|n) (?:failed|errors?)\b(?!:)|"
     r"finished: failure|job failed|step\b.*\bfailed|\bskipped\b|"
     r"failure: build failed with an exception|^\W*$|"
     # Gradle wrapper lines: identical for every Gradle failure.

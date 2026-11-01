@@ -1,0 +1,561 @@
+2026-10-30T14:00:00.6433012Z ##[group]Run actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+2026-10-30T14:00:01.3530829Z Fetching the repository ... object 0 received
+2026-10-30T14:00:02.7624039Z Fetching the repository ... object 137 received
+2026-10-30T14:00:03.1810111Z Fetching the repository ... object 274 received
+2026-10-30T14:00:04.2215279Z Fetching the repository ... object 411 received
+2026-10-30T14:00:05.9990608Z Fetching the repository ... object 548 received
+2026-10-30T14:00:06.2579240Z Fetching the repository ... object 685 received
+2026-10-30T14:00:07.7135241Z Fetching the repository ... object 822 received
+2026-10-30T14:00:08.1973060Z Fetching the repository ... object 959 received
+2026-10-30T14:00:09.9513358Z Fetching the repository ... object 1096 received
+2026-10-30T14:00:10.4602037Z Fetching the repository ... object 1233 received
+2026-10-30T14:00:11.1629072Z Fetching the repository ... object 1370 received
+2026-10-30T14:00:12.2441955Z Fetching the repository ... object 1507 received
+2026-10-30T14:00:13.8275367Z Fetching the repository ... object 1644 received
+2026-10-30T14:00:14.8015764Z Fetching the repository ... object 1781 received
+2026-10-30T14:00:15.2171979Z Fetching the repository ... object 1918 received
+2026-10-30T14:00:16.5037655Z Fetching the repository ... object 2055 received
+2026-10-30T14:00:17.2521911Z Fetching the repository ... object 2192 received
+2026-10-30T14:00:18.8122250Z Fetching the repository ... object 2329 received
+2026-10-30T14:00:19.1991709Z Fetching the repository ... object 2466 received
+2026-10-30T14:00:20.3077052Z Fetching the repository ... object 2603 received
+2026-10-30T14:00:21.4745328Z Fetching the repository ... object 2740 received
+2026-10-30T14:00:22.2037872Z Fetching the repository ... object 2877 received
+2026-10-30T14:00:23.7655194Z Fetching the repository ... object 3014 received
+2026-10-30T14:00:24.1831970Z Fetching the repository ... object 3151 received
+2026-10-30T14:00:25.4709137Z Fetching the repository ... object 3288 received
+2026-10-30T14:00:26.1781527Z ##[endgroup]
+2026-10-30T14:00:27.3234302Z ##[group]Run actions/setup-java
+2026-10-30T14:00:28.5858837Z Java 21.0.5 installed
+2026-10-30T14:00:29.8031986Z ##[endgroup]
+2026-10-30T14:00:30.3420198Z Run mvn -B verify
+2026-10-30T14:00:31.2976225Z [INFO] Scanning for projects...
+2026-10-30T14:00:32.6175466Z [INFO] Building shop-service 2.4.0-SNAPSHOT
+2026-10-30T14:00:33.4151952Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-0.jar (578 kB at 12.1 MB/s)
+2026-10-30T14:00:34.2053424Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-1.jar (386 kB at 7.8 MB/s)
+2026-10-30T14:00:35.4455413Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-2.jar (582 kB at 4.9 MB/s)
+2026-10-30T14:00:36.6270514Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-3.jar (513 kB at 35.6 MB/s)
+2026-10-30T14:00:37.7066345Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-4.jar (481 kB at 38.7 MB/s)
+2026-10-30T14:00:38.5095259Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-5.jar (311 kB at 16.2 MB/s)
+2026-10-30T14:00:39.9811335Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-6.jar (88 kB at 37.4 MB/s)
+2026-10-30T14:00:40.5830794Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-7.jar (511 kB at 22.7 MB/s)
+2026-10-30T14:00:41.9588807Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-8.jar (628 kB at 5.1 MB/s)
+2026-10-30T14:00:42.3549877Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-9.jar (433 kB at 11.5 MB/s)
+2026-10-30T14:00:43.2302255Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-10.jar (505 kB at 27.0 MB/s)
+2026-10-30T14:00:44.6263809Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-11.jar (787 kB at 36.9 MB/s)
+2026-10-30T14:00:45.9332820Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-12.jar (353 kB at 23.9 MB/s)
+2026-10-30T14:00:46.2570280Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-13.jar (598 kB at 30.1 MB/s)
+2026-10-30T14:00:47.2017864Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-14.jar (281 kB at 31.1 MB/s)
+2026-10-30T14:00:48.8476611Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-15.jar (753 kB at 20.9 MB/s)
+2026-10-30T14:00:49.1378543Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-16.jar (296 kB at 25.5 MB/s)
+2026-10-30T14:00:50.2964541Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-17.jar (477 kB at 23.2 MB/s)
+2026-10-30T14:00:51.5822307Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-18.jar (510 kB at 4.3 MB/s)
+2026-10-30T14:00:52.7559047Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-19.jar (137 kB at 16.6 MB/s)
+2026-10-30T14:00:53.3791163Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-20.jar (897 kB at 32.1 MB/s)
+2026-10-30T14:00:54.5661367Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-21.jar (464 kB at 26.8 MB/s)
+2026-10-30T14:00:55.5671130Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-22.jar (145 kB at 28.8 MB/s)
+2026-10-30T14:00:56.7382745Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-23.jar (728 kB at 27.5 MB/s)
+2026-10-30T14:00:57.3956442Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-24.jar (241 kB at 10.1 MB/s)
+2026-10-30T14:00:58.1202384Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-25.jar (159 kB at 15.3 MB/s)
+2026-10-30T14:00:59.5408156Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-26.jar (501 kB at 38.2 MB/s)
+2026-10-30T14:01:00.8028755Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-27.jar (293 kB at 1.2 MB/s)
+2026-10-30T14:01:01.6345416Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-28.jar (552 kB at 24.9 MB/s)
+2026-10-30T14:01:02.1905850Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-29.jar (133 kB at 33.9 MB/s)
+2026-10-30T14:01:03.7678500Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-30.jar (472 kB at 36.6 MB/s)
+2026-10-30T14:01:04.9078612Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-31.jar (413 kB at 26.1 MB/s)
+2026-10-30T14:01:05.4197897Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-32.jar (654 kB at 26.0 MB/s)
+2026-10-30T14:01:06.3722995Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-33.jar (73 kB at 14.7 MB/s)
+2026-10-30T14:01:07.1882072Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-34.jar (117 kB at 22.9 MB/s)
+2026-10-30T14:01:08.3537804Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-35.jar (109 kB at 1.9 MB/s)
+2026-10-30T14:01:09.1427833Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-36.jar (554 kB at 7.5 MB/s)
+2026-10-30T14:01:10.7312081Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-37.jar (77 kB at 14.9 MB/s)
+2026-10-30T14:01:11.7109648Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-38.jar (157 kB at 17.5 MB/s)
+2026-10-30T14:01:12.9188423Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-39.jar (490 kB at 8.1 MB/s)
+2026-10-30T14:01:13.6232013Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-40.jar (482 kB at 31.7 MB/s)
+2026-10-30T14:01:14.6748475Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-41.jar (92 kB at 10.1 MB/s)
+2026-10-30T14:01:15.3708490Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-42.jar (763 kB at 17.7 MB/s)
+2026-10-30T14:01:16.9862688Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-43.jar (533 kB at 2.3 MB/s)
+2026-10-30T14:01:17.1453697Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-44.jar (375 kB at 10.8 MB/s)
+2026-10-30T14:01:18.2526903Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-45.jar (781 kB at 34.4 MB/s)
+2026-10-30T14:01:19.7152201Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-46.jar (717 kB at 17.8 MB/s)
+2026-10-30T14:01:20.9935417Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-47.jar (176 kB at 23.3 MB/s)
+2026-10-30T14:01:21.4742018Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-48.jar (559 kB at 33.5 MB/s)
+2026-10-30T14:01:22.7722368Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-49.jar (632 kB at 13.3 MB/s)
+2026-10-30T14:01:23.9684536Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-50.jar (762 kB at 15.3 MB/s)
+2026-10-30T14:01:24.1468706Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-51.jar (509 kB at 23.0 MB/s)
+2026-10-30T14:01:25.5348224Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-52.jar (814 kB at 18.7 MB/s)
+2026-10-30T14:01:26.8503235Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-53.jar (203 kB at 39.5 MB/s)
+2026-10-30T14:01:27.2351205Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-54.jar (832 kB at 23.5 MB/s)
+2026-10-30T14:01:28.8886633Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-55.jar (230 kB at 7.3 MB/s)
+2026-10-30T14:01:29.9097578Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-56.jar (206 kB at 22.3 MB/s)
+2026-10-30T14:01:30.9044229Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-57.jar (644 kB at 40.0 MB/s)
+2026-10-30T14:01:31.3011649Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-58.jar (673 kB at 23.1 MB/s)
+2026-10-30T14:01:32.3995097Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-59.jar (402 kB at 13.7 MB/s)
+2026-10-30T14:01:33.7641067Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-60.jar (449 kB at 22.1 MB/s)
+2026-10-30T14:01:34.3665162Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-61.jar (479 kB at 26.1 MB/s)
+2026-10-30T14:01:35.3535887Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-62.jar (179 kB at 9.0 MB/s)
+2026-10-30T14:01:36.8958388Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-63.jar (609 kB at 30.2 MB/s)
+2026-10-30T14:01:37.3197544Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-64.jar (678 kB at 23.2 MB/s)
+2026-10-30T14:01:38.9834563Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-65.jar (26 kB at 1.1 MB/s)
+2026-10-30T14:01:39.4268292Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-66.jar (772 kB at 9.6 MB/s)
+2026-10-30T14:01:40.5225087Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-67.jar (850 kB at 14.0 MB/s)
+2026-10-30T14:01:41.5035581Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-68.jar (222 kB at 19.8 MB/s)
+2026-10-30T14:01:42.5351419Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-69.jar (787 kB at 38.5 MB/s)
+2026-10-30T14:01:43.2021808Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-70.jar (562 kB at 27.2 MB/s)
+2026-10-30T14:01:44.9669808Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-71.jar (762 kB at 23.7 MB/s)
+2026-10-30T14:01:45.9922542Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-72.jar (435 kB at 33.2 MB/s)
+2026-10-30T14:01:46.1313815Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-73.jar (160 kB at 34.8 MB/s)
+2026-10-30T14:01:47.1065976Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-74.jar (898 kB at 29.2 MB/s)
+2026-10-30T14:01:48.3374965Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-75.jar (799 kB at 10.2 MB/s)
+2026-10-30T14:01:49.2036081Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-76.jar (489 kB at 40.1 MB/s)
+2026-10-30T14:01:50.9094788Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-77.jar (338 kB at 34.8 MB/s)
+2026-10-30T14:01:51.1953324Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-78.jar (808 kB at 7.8 MB/s)
+2026-10-30T14:01:52.1707979Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-79.jar (259 kB at 13.4 MB/s)
+2026-10-30T14:01:53.8586253Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-80.jar (795 kB at 7.8 MB/s)
+2026-10-30T14:01:54.8436474Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-81.jar (580 kB at 2.1 MB/s)
+2026-10-30T14:01:55.9592643Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-82.jar (338 kB at 40.8 MB/s)
+2026-10-30T14:01:56.9525445Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-83.jar (209 kB at 18.7 MB/s)
+2026-10-30T14:01:57.5154974Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-84.jar (551 kB at 31.8 MB/s)
+2026-10-30T14:01:58.4398871Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-85.jar (720 kB at 34.4 MB/s)
+2026-10-30T14:01:59.7990009Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-86.jar (865 kB at 29.2 MB/s)
+2026-10-30T14:02:00.6301261Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-87.jar (129 kB at 26.7 MB/s)
+2026-10-30T14:02:01.2226762Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-88.jar (79 kB at 16.6 MB/s)
+2026-10-30T14:02:02.3591184Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-89.jar (222 kB at 20.1 MB/s)
+2026-10-30T14:02:03.5246444Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-90.jar (738 kB at 24.2 MB/s)
+2026-10-30T14:02:04.2579162Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-91.jar (145 kB at 30.3 MB/s)
+2026-10-30T14:02:05.4753267Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-92.jar (412 kB at 32.2 MB/s)
+2026-10-30T14:02:06.7774803Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-93.jar (170 kB at 28.8 MB/s)
+2026-10-30T14:02:07.6983003Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-94.jar (352 kB at 27.3 MB/s)
+2026-10-30T14:02:08.1326869Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-95.jar (331 kB at 6.5 MB/s)
+2026-10-30T14:02:09.8389660Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-96.jar (351 kB at 36.7 MB/s)
+2026-10-30T14:02:10.6561611Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-97.jar (725 kB at 2.6 MB/s)
+2026-10-30T14:02:11.9594334Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-98.jar (534 kB at 40.4 MB/s)
+2026-10-30T14:02:12.2757909Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-99.jar (70 kB at 8.3 MB/s)
+2026-10-30T14:02:13.1664179Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-100.jar (91 kB at 17.4 MB/s)
+2026-10-30T14:02:14.3173581Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-101.jar (802 kB at 12.4 MB/s)
+2026-10-30T14:02:15.7810674Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-102.jar (844 kB at 28.4 MB/s)
+2026-10-30T14:02:16.9298213Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-103.jar (157 kB at 35.8 MB/s)
+2026-10-30T14:02:17.5681888Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-104.jar (722 kB at 21.1 MB/s)
+2026-10-30T14:02:18.2214906Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-105.jar (63 kB at 12.6 MB/s)
+2026-10-30T14:02:19.5371335Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-106.jar (280 kB at 2.1 MB/s)
+2026-10-30T14:02:20.2117740Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-107.jar (90 kB at 39.3 MB/s)
+2026-10-30T14:02:21.1193715Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-108.jar (275 kB at 8.7 MB/s)
+2026-10-30T14:02:22.5493940Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-109.jar (352 kB at 36.6 MB/s)
+2026-10-30T14:02:23.9840167Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-110.jar (641 kB at 9.0 MB/s)
+2026-10-30T14:02:24.3708666Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-111.jar (731 kB at 16.1 MB/s)
+2026-10-30T14:02:25.4385109Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-112.jar (273 kB at 4.2 MB/s)
+2026-10-30T14:02:26.4453951Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-113.jar (324 kB at 20.8 MB/s)
+2026-10-30T14:02:27.3984664Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-114.jar (301 kB at 29.8 MB/s)
+2026-10-30T14:02:28.5201832Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-115.jar (282 kB at 23.0 MB/s)
+2026-10-30T14:02:29.9483466Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-116.jar (42 kB at 1.0 MB/s)
+2026-10-30T14:02:30.8965161Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-117.jar (569 kB at 13.8 MB/s)
+2026-10-30T14:02:31.8250736Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-118.jar (256 kB at 29.1 MB/s)
+2026-10-30T14:02:32.7594889Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-119.jar (677 kB at 32.8 MB/s)
+2026-10-30T14:02:33.4851482Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-120.jar (523 kB at 20.3 MB/s)
+2026-10-30T14:02:34.7789700Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-121.jar (355 kB at 13.2 MB/s)
+2026-10-30T14:02:35.1239161Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-122.jar (360 kB at 4.2 MB/s)
+2026-10-30T14:02:36.3738822Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-123.jar (77 kB at 17.6 MB/s)
+2026-10-30T14:02:37.9488313Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-124.jar (61 kB at 6.6 MB/s)
+2026-10-30T14:02:38.5063658Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-125.jar (691 kB at 19.9 MB/s)
+2026-10-30T14:02:39.8708341Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-126.jar (714 kB at 19.0 MB/s)
+2026-10-30T14:02:40.8479695Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-127.jar (194 kB at 11.4 MB/s)
+2026-10-30T14:02:41.6518465Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-128.jar (8 kB at 17.5 MB/s)
+2026-10-30T14:02:42.1577920Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-129.jar (565 kB at 21.3 MB/s)
+2026-10-30T14:02:43.4069524Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-130.jar (321 kB at 14.5 MB/s)
+2026-10-30T14:02:44.2407450Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-131.jar (6 kB at 22.6 MB/s)
+2026-10-30T14:02:45.4371885Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-132.jar (491 kB at 18.8 MB/s)
+2026-10-30T14:02:46.2524238Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-133.jar (259 kB at 33.0 MB/s)
+2026-10-30T14:02:47.7702685Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-134.jar (275 kB at 6.2 MB/s)
+2026-10-30T14:02:48.1377389Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-135.jar (605 kB at 3.6 MB/s)
+2026-10-30T14:02:49.2417384Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-136.jar (311 kB at 20.3 MB/s)
+2026-10-30T14:02:50.7535001Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-137.jar (604 kB at 34.2 MB/s)
+2026-10-30T14:02:51.3507575Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-138.jar (787 kB at 21.7 MB/s)
+2026-10-30T14:02:52.1734641Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-139.jar (295 kB at 40.2 MB/s)
+2026-10-30T14:02:53.9481571Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-140.jar (849 kB at 33.6 MB/s)
+2026-10-30T14:02:54.1269773Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-141.jar (147 kB at 34.8 MB/s)
+2026-10-30T14:02:55.2427601Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-142.jar (851 kB at 38.3 MB/s)
+2026-10-30T14:02:56.7051667Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-143.jar (36 kB at 3.2 MB/s)
+2026-10-30T14:02:57.1851952Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-144.jar (112 kB at 25.7 MB/s)
+2026-10-30T14:02:58.5103030Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-145.jar (647 kB at 2.8 MB/s)
+2026-10-30T14:02:59.8666324Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-146.jar (506 kB at 17.0 MB/s)
+2026-10-30T14:03:00.9979162Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-147.jar (821 kB at 5.8 MB/s)
+2026-10-30T14:03:01.8950025Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-148.jar (99 kB at 34.1 MB/s)
+2026-10-30T14:03:02.4939049Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-149.jar (263 kB at 5.4 MB/s)
+2026-10-30T14:03:03.8723224Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-150.jar (751 kB at 14.3 MB/s)
+2026-10-30T14:03:04.9036456Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-151.jar (510 kB at 25.1 MB/s)
+2026-10-30T14:03:05.4326756Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-152.jar (705 kB at 19.0 MB/s)
+2026-10-30T14:03:06.6566226Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-153.jar (84 kB at 39.2 MB/s)
+2026-10-30T14:03:07.3238768Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-154.jar (265 kB at 20.9 MB/s)
+2026-10-30T14:03:08.9150338Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-155.jar (17 kB at 31.0 MB/s)
+2026-10-30T14:03:09.9214365Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-156.jar (280 kB at 7.3 MB/s)
+2026-10-30T14:03:10.8795749Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-157.jar (302 kB at 34.4 MB/s)
+2026-10-30T14:03:11.4342860Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-158.jar (482 kB at 30.1 MB/s)
+2026-10-30T14:03:12.1293676Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-159.jar (324 kB at 6.7 MB/s)
+2026-10-30T14:03:13.9499648Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-160.jar (301 kB at 30.1 MB/s)
+2026-10-30T14:03:14.4520484Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-161.jar (465 kB at 18.6 MB/s)
+2026-10-30T14:03:15.2515034Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-162.jar (220 kB at 5.9 MB/s)
+2026-10-30T14:03:16.7032308Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-163.jar (150 kB at 34.4 MB/s)
+2026-10-30T14:03:17.5690370Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-164.jar (140 kB at 39.8 MB/s)
+2026-10-30T14:03:18.9353173Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-165.jar (120 kB at 24.3 MB/s)
+2026-10-30T14:03:19.3668672Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-166.jar (502 kB at 26.0 MB/s)
+2026-10-30T14:03:20.7801807Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-167.jar (8 kB at 32.7 MB/s)
+2026-10-30T14:03:21.6770693Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-168.jar (314 kB at 10.6 MB/s)
+2026-10-30T14:03:22.6558700Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-169.jar (390 kB at 21.1 MB/s)
+2026-10-30T14:03:23.7681686Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-170.jar (6 kB at 21.5 MB/s)
+2026-10-30T14:03:24.5862590Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-171.jar (127 kB at 13.0 MB/s)
+2026-10-30T14:03:25.7591757Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-172.jar (264 kB at 24.1 MB/s)
+2026-10-30T14:03:26.7051698Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-173.jar (404 kB at 38.1 MB/s)
+2026-10-30T14:03:27.5708319Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-174.jar (443 kB at 18.0 MB/s)
+2026-10-30T14:03:28.3498368Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-175.jar (109 kB at 4.4 MB/s)
+2026-10-30T14:03:29.9572536Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-176.jar (260 kB at 18.6 MB/s)
+2026-10-30T14:03:30.8176414Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-177.jar (328 kB at 13.5 MB/s)
+2026-10-30T14:03:31.4413086Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-178.jar (34 kB at 26.8 MB/s)
+2026-10-30T14:03:32.7893523Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-179.jar (741 kB at 6.0 MB/s)
+2026-10-30T14:03:33.5801778Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-180.jar (466 kB at 40.2 MB/s)
+2026-10-30T14:03:34.3135929Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-181.jar (502 kB at 4.8 MB/s)
+2026-10-30T14:03:35.6765705Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-182.jar (179 kB at 31.6 MB/s)
+2026-10-30T14:03:36.5364912Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-183.jar (293 kB at 20.4 MB/s)
+2026-10-30T14:03:37.9106449Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-184.jar (420 kB at 16.4 MB/s)
+2026-10-30T14:03:38.3807372Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-185.jar (575 kB at 26.1 MB/s)
+2026-10-30T14:03:39.4487522Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-186.jar (663 kB at 11.1 MB/s)
+2026-10-30T14:03:40.4691411Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-187.jar (517 kB at 32.8 MB/s)
+2026-10-30T14:03:41.8170968Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-188.jar (468 kB at 22.7 MB/s)
+2026-10-30T14:03:42.5095077Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-189.jar (147 kB at 36.3 MB/s)
+2026-10-30T14:03:43.2528309Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-190.jar (97 kB at 12.5 MB/s)
+2026-10-30T14:03:44.5334520Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-191.jar (331 kB at 16.5 MB/s)
+2026-10-30T14:03:45.1336915Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-192.jar (833 kB at 37.3 MB/s)
+2026-10-30T14:03:46.7943814Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-193.jar (772 kB at 27.6 MB/s)
+2026-10-30T14:03:47.7322759Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-194.jar (768 kB at 34.3 MB/s)
+2026-10-30T14:03:48.9357501Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-195.jar (281 kB at 22.0 MB/s)
+2026-10-30T14:03:49.3111811Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-196.jar (289 kB at 37.5 MB/s)
+2026-10-30T14:03:50.4623260Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-197.jar (708 kB at 33.8 MB/s)
+2026-10-30T14:03:51.7451858Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-198.jar (99 kB at 18.3 MB/s)
+2026-10-30T14:03:52.6234760Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-199.jar (414 kB at 29.6 MB/s)
+2026-10-30T14:03:53.1540956Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-200.jar (874 kB at 2.2 MB/s)
+2026-10-30T14:03:54.9217889Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-201.jar (440 kB at 31.9 MB/s)
+2026-10-30T14:03:55.9856044Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-202.jar (5 kB at 5.6 MB/s)
+2026-10-30T14:03:56.5168555Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-203.jar (880 kB at 30.7 MB/s)
+2026-10-30T14:03:57.3590039Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-204.jar (806 kB at 7.3 MB/s)
+2026-10-30T14:03:58.8672641Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-205.jar (160 kB at 34.1 MB/s)
+2026-10-30T14:03:59.1022918Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-206.jar (92 kB at 36.0 MB/s)
+2026-10-30T14:04:00.1630684Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-207.jar (806 kB at 9.3 MB/s)
+2026-10-30T14:04:01.5224401Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-208.jar (665 kB at 20.2 MB/s)
+2026-10-30T14:04:02.2668406Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-209.jar (545 kB at 28.1 MB/s)
+2026-10-30T14:04:03.4216221Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-210.jar (77 kB at 20.8 MB/s)
+2026-10-30T14:04:04.1019327Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-211.jar (402 kB at 17.3 MB/s)
+2026-10-30T14:04:05.8729106Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-212.jar (15 kB at 35.4 MB/s)
+2026-10-30T14:04:06.8974281Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-213.jar (290 kB at 21.3 MB/s)
+2026-10-30T14:04:07.5144951Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-214.jar (543 kB at 16.8 MB/s)
+2026-10-30T14:04:08.1927926Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-215.jar (34 kB at 27.4 MB/s)
+2026-10-30T14:04:09.8046697Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-216.jar (27 kB at 13.7 MB/s)
+2026-10-30T14:04:10.8118948Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-217.jar (88 kB at 17.3 MB/s)
+2026-10-30T14:04:11.1572059Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-218.jar (384 kB at 15.7 MB/s)
+2026-10-30T14:04:12.7078719Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-219.jar (717 kB at 22.6 MB/s)
+2026-10-30T14:04:13.1113304Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-220.jar (703 kB at 26.3 MB/s)
+2026-10-30T14:04:14.2131328Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-221.jar (821 kB at 19.8 MB/s)
+2026-10-30T14:04:15.6229722Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-222.jar (215 kB at 32.3 MB/s)
+2026-10-30T14:04:16.8803319Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-223.jar (789 kB at 13.3 MB/s)
+2026-10-30T14:04:17.2828851Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-224.jar (231 kB at 17.4 MB/s)
+2026-10-30T14:04:18.4142594Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-225.jar (643 kB at 32.9 MB/s)
+2026-10-30T14:04:19.1946521Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-226.jar (233 kB at 32.6 MB/s)
+2026-10-30T14:04:20.1911982Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-227.jar (614 kB at 10.6 MB/s)
+2026-10-30T14:04:21.3380872Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-228.jar (223 kB at 2.9 MB/s)
+2026-10-30T14:04:22.4088766Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-229.jar (430 kB at 4.0 MB/s)
+2026-10-30T14:04:23.2899274Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-230.jar (407 kB at 29.5 MB/s)
+2026-10-30T14:04:24.4199138Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-231.jar (86 kB at 11.5 MB/s)
+2026-10-30T14:04:25.1535087Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-232.jar (194 kB at 34.7 MB/s)
+2026-10-30T14:04:26.6564960Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-233.jar (324 kB at 25.5 MB/s)
+2026-10-30T14:04:27.1048162Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-234.jar (458 kB at 11.1 MB/s)
+2026-10-30T14:04:28.6896635Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-235.jar (85 kB at 18.1 MB/s)
+2026-10-30T14:04:29.4479635Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-236.jar (435 kB at 8.8 MB/s)
+2026-10-30T14:04:30.8255295Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-237.jar (394 kB at 23.4 MB/s)
+2026-10-30T14:04:31.4283566Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-238.jar (94 kB at 4.7 MB/s)
+2026-10-30T14:04:32.4238442Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-239.jar (386 kB at 35.7 MB/s)
+2026-10-30T14:04:33.1508048Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-240.jar (336 kB at 24.7 MB/s)
+2026-10-30T14:04:34.7790957Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-241.jar (651 kB at 27.3 MB/s)
+2026-10-30T14:04:35.8785477Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-242.jar (46 kB at 25.0 MB/s)
+2026-10-30T14:04:36.4270574Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-243.jar (69 kB at 4.4 MB/s)
+2026-10-30T14:04:37.6688642Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-244.jar (770 kB at 5.9 MB/s)
+2026-10-30T14:04:38.1731244Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-245.jar (376 kB at 18.5 MB/s)
+2026-10-30T14:04:39.5989642Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-246.jar (273 kB at 21.4 MB/s)
+2026-10-30T14:04:40.1406959Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-247.jar (8 kB at 39.1 MB/s)
+2026-10-30T14:04:41.8972349Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-248.jar (850 kB at 15.1 MB/s)
+2026-10-30T14:04:42.5211866Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-249.jar (737 kB at 30.6 MB/s)
+2026-10-30T14:04:43.9330569Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-250.jar (445 kB at 32.2 MB/s)
+2026-10-30T14:04:44.3538648Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-251.jar (192 kB at 1.4 MB/s)
+2026-10-30T14:04:45.6361138Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-252.jar (626 kB at 16.5 MB/s)
+2026-10-30T14:04:46.2325649Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-253.jar (476 kB at 24.9 MB/s)
+2026-10-30T14:04:47.3683304Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-254.jar (529 kB at 13.6 MB/s)
+2026-10-30T14:04:48.1568138Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-255.jar (258 kB at 27.1 MB/s)
+2026-10-30T14:04:49.6465318Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-256.jar (498 kB at 36.8 MB/s)
+2026-10-30T14:04:50.2210728Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-257.jar (169 kB at 28.1 MB/s)
+2026-10-30T14:04:51.4495382Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-258.jar (276 kB at 40.1 MB/s)
+2026-10-30T14:04:52.8498796Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-259.jar (103 kB at 27.7 MB/s)
+2026-10-30T14:04:53.7993425Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-260.jar (182 kB at 15.2 MB/s)
+2026-10-30T14:04:54.3032806Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-261.jar (476 kB at 40.3 MB/s)
+2026-10-30T14:04:55.5687502Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-262.jar (803 kB at 19.4 MB/s)
+2026-10-30T14:04:56.5262360Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-263.jar (585 kB at 18.5 MB/s)
+2026-10-30T14:04:57.8371871Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-264.jar (760 kB at 17.3 MB/s)
+2026-10-30T14:04:58.4951101Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-265.jar (258 kB at 12.3 MB/s)
+2026-10-30T14:04:59.4158313Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-266.jar (162 kB at 19.9 MB/s)
+2026-10-30T14:05:00.5222049Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-267.jar (339 kB at 5.6 MB/s)
+2026-10-30T14:05:01.4881928Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-268.jar (256 kB at 33.8 MB/s)
+2026-10-30T14:05:02.1621145Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-269.jar (670 kB at 7.7 MB/s)
+2026-10-30T14:05:03.4877442Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-270.jar (109 kB at 1.7 MB/s)
+2026-10-30T14:05:04.1677159Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-271.jar (865 kB at 29.5 MB/s)
+2026-10-30T14:05:05.1845423Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-272.jar (305 kB at 15.1 MB/s)
+2026-10-30T14:05:06.4257491Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-273.jar (199 kB at 39.9 MB/s)
+2026-10-30T14:05:07.3982301Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-274.jar (81 kB at 24.8 MB/s)
+2026-10-30T14:05:08.1106359Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-275.jar (464 kB at 39.4 MB/s)
+2026-10-30T14:05:09.6866986Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-276.jar (113 kB at 39.9 MB/s)
+2026-10-30T14:05:10.6704531Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-277.jar (227 kB at 3.5 MB/s)
+2026-10-30T14:05:11.5276741Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-278.jar (149 kB at 3.3 MB/s)
+2026-10-30T14:05:12.1190921Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-279.jar (44 kB at 39.3 MB/s)
+2026-10-30T14:05:13.7237924Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-280.jar (843 kB at 21.6 MB/s)
+2026-10-30T14:05:14.2307528Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-281.jar (194 kB at 40.4 MB/s)
+2026-10-30T14:05:15.9111901Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-282.jar (213 kB at 3.7 MB/s)
+2026-10-30T14:05:16.7631978Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-283.jar (69 kB at 27.1 MB/s)
+2026-10-30T14:05:17.9958985Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-284.jar (684 kB at 36.2 MB/s)
+2026-10-30T14:05:18.5549425Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-285.jar (98 kB at 11.6 MB/s)
+2026-10-30T14:05:19.8010282Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-286.jar (424 kB at 19.4 MB/s)
+2026-10-30T14:05:20.6992514Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-287.jar (57 kB at 20.9 MB/s)
+2026-10-30T14:05:21.7103238Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-288.jar (429 kB at 27.0 MB/s)
+2026-10-30T14:05:22.7794326Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-289.jar (664 kB at 13.6 MB/s)
+2026-10-30T14:05:23.3626756Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-290.jar (213 kB at 1.6 MB/s)
+2026-10-30T14:05:24.7815201Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-291.jar (438 kB at 8.1 MB/s)
+2026-10-30T14:05:25.3727045Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-292.jar (596 kB at 24.7 MB/s)
+2026-10-30T14:05:26.3390699Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/hibernate/orm/hibernate-core/6.6.1.Final/part-293.jar (138 kB at 1.0 MB/s)
+2026-10-30T14:05:27.7221723Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/spring-core/6.1.14/part-294.jar (661 kB at 26.1 MB/s)
+2026-10-30T14:05:28.3447574Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/part-295.jar (759 kB at 33.2 MB/s)
+2026-10-30T14:05:29.9743595Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/slf4j/slf4j-api/2.0.16/part-296.jar (361 kB at 19.2 MB/s)
+2026-10-30T14:05:30.7438000Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/5.11.3/part-297.jar (180 kB at 5.1 MB/s)
+2026-10-30T14:05:31.3124840Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/mockito/mockito-core/5.14.2/part-298.jar (507 kB at 13.4 MB/s)
+2026-10-30T14:05:32.6276870Z [INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/netty/netty-all/4.1.114.Final/part-299.jar (862 kB at 3.7 MB/s)
+2026-10-30T14:05:33.1895476Z [INFO] --- checkstyle:3.5.0:check (validate) @ shop-service ---
+2026-10-30T14:05:34.7507801Z [INFO] You have 0 Checkstyle violations.
+2026-10-30T14:05:35.2447780Z [INFO] Found 0 errors and 0 warnings.
+2026-10-30T14:05:36.3688987Z [INFO] config: http client request timeout set to 30s for profile ci-0
+2026-10-30T14:05:37.4725801Z [INFO] config: http client request timeout set to 31s for profile ci-1
+2026-10-30T14:05:38.7786124Z [INFO] config: http client request timeout set to 32s for profile ci-2
+2026-10-30T14:05:39.4290229Z [INFO] config: http client request timeout set to 33s for profile ci-3
+2026-10-30T14:05:40.8934871Z [INFO] config: http client request timeout set to 34s for profile ci-4
+2026-10-30T14:05:41.4069652Z [INFO] config: http client request timeout set to 35s for profile ci-5
+2026-10-30T14:05:42.4659729Z [INFO] config: http client request timeout set to 36s for profile ci-6
+2026-10-30T14:05:43.1699820Z [INFO] config: http client request timeout set to 37s for profile ci-7
+2026-10-30T14:05:44.7706617Z [INFO] config: http client request timeout set to 38s for profile ci-8
+2026-10-30T14:05:45.9688794Z [INFO] config: http client request timeout set to 39s for profile ci-9
+2026-10-30T14:05:46.3625280Z [INFO] config: http client request timeout set to 40s for profile ci-10
+2026-10-30T14:05:47.7435343Z [INFO] config: http client request timeout set to 41s for profile ci-11
+2026-10-30T14:05:48.7026504Z [INFO] config: http client request timeout set to 42s for profile ci-12
+2026-10-30T14:05:49.3064548Z [INFO] config: http client request timeout set to 43s for profile ci-13
+2026-10-30T14:05:50.3507642Z [INFO] config: http client request timeout set to 44s for profile ci-14
+2026-10-30T14:05:51.5144960Z [INFO] config: http client request timeout set to 45s for profile ci-15
+2026-10-30T14:05:52.4231219Z [INFO] config: http client request timeout set to 46s for profile ci-16
+2026-10-30T14:05:53.1689527Z [INFO] config: http client request timeout set to 47s for profile ci-17
+2026-10-30T14:05:54.1639693Z [INFO] config: http client request timeout set to 48s for profile ci-18
+2026-10-30T14:05:55.6439220Z [INFO] config: http client request timeout set to 49s for profile ci-19
+2026-10-30T14:05:56.2975198Z [INFO] --- compiler:3.13.0:compile (default-compile) @ shop-service ---
+2026-10-30T14:05:57.7540371Z [INFO] Compiling 214 source files with javac [debug release 21] to target/classes
+2026-10-30T14:05:58.8645939Z [INFO] processing annotation round 0 for com.shop.generated.Mapper0
+2026-10-30T14:05:59.6137420Z [INFO] processing annotation round 1 for com.shop.generated.Mapper1
+2026-10-30T14:06:00.8047636Z [INFO] processing annotation round 2 for com.shop.generated.Mapper2
+2026-10-30T14:06:01.6170932Z [INFO] processing annotation round 3 for com.shop.generated.Mapper3
+2026-10-30T14:06:02.5181869Z [INFO] processing annotation round 4 for com.shop.generated.Mapper4
+2026-10-30T14:06:03.8142729Z [INFO] processing annotation round 5 for com.shop.generated.Mapper5
+2026-10-30T14:06:04.7529894Z [INFO] processing annotation round 6 for com.shop.generated.Mapper6
+2026-10-30T14:06:05.7164788Z [INFO] processing annotation round 7 for com.shop.generated.Mapper7
+2026-10-30T14:06:06.8495882Z [INFO] processing annotation round 8 for com.shop.generated.Mapper8
+2026-10-30T14:06:07.9448643Z [INFO] processing annotation round 9 for com.shop.generated.Mapper9
+2026-10-30T14:06:08.8354336Z [INFO] processing annotation round 10 for com.shop.generated.Mapper10
+2026-10-30T14:06:09.3999160Z [INFO] processing annotation round 11 for com.shop.generated.Mapper11
+2026-10-30T14:06:10.1392172Z [INFO] processing annotation round 12 for com.shop.generated.Mapper12
+2026-10-30T14:06:11.1058856Z [INFO] processing annotation round 13 for com.shop.generated.Mapper13
+2026-10-30T14:06:12.9212474Z [INFO] processing annotation round 14 for com.shop.generated.Mapper14
+2026-10-30T14:06:13.8805987Z [INFO] processing annotation round 15 for com.shop.generated.Mapper15
+2026-10-30T14:06:14.4946855Z [INFO] processing annotation round 16 for com.shop.generated.Mapper16
+2026-10-30T14:06:15.8496376Z [INFO] processing annotation round 17 for com.shop.generated.Mapper17
+2026-10-30T14:06:16.8688814Z [INFO] processing annotation round 18 for com.shop.generated.Mapper18
+2026-10-30T14:06:17.4012668Z [INFO] processing annotation round 19 for com.shop.generated.Mapper19
+2026-10-30T14:06:18.8939294Z [INFO] processing annotation round 20 for com.shop.generated.Mapper20
+2026-10-30T14:06:19.7716630Z [INFO] processing annotation round 21 for com.shop.generated.Mapper21
+2026-10-30T14:06:20.2796438Z [INFO] processing annotation round 22 for com.shop.generated.Mapper22
+2026-10-30T14:06:21.2126097Z [INFO] processing annotation round 23 for com.shop.generated.Mapper23
+2026-10-30T14:06:22.3155132Z [INFO] processing annotation round 24 for com.shop.generated.Mapper24
+2026-10-30T14:06:23.7015891Z [INFO] processing annotation round 25 for com.shop.generated.Mapper25
+2026-10-30T14:06:24.8224252Z [INFO] processing annotation round 26 for com.shop.generated.Mapper26
+2026-10-30T14:06:25.7129259Z [INFO] processing annotation round 27 for com.shop.generated.Mapper27
+2026-10-30T14:06:26.2538691Z [INFO] processing annotation round 28 for com.shop.generated.Mapper28
+2026-10-30T14:06:27.8414978Z [INFO] processing annotation round 29 for com.shop.generated.Mapper29
+2026-10-30T14:06:28.9461455Z [INFO] processing annotation round 30 for com.shop.generated.Mapper30
+2026-10-30T14:06:29.9559085Z [INFO] processing annotation round 31 for com.shop.generated.Mapper31
+2026-10-30T14:06:30.1683953Z [INFO] processing annotation round 32 for com.shop.generated.Mapper32
+2026-10-30T14:06:31.1682021Z [INFO] processing annotation round 33 for com.shop.generated.Mapper33
+2026-10-30T14:06:32.3185584Z [INFO] processing annotation round 34 for com.shop.generated.Mapper34
+2026-10-30T14:06:33.2379775Z [INFO] processing annotation round 35 for com.shop.generated.Mapper35
+2026-10-30T14:06:34.6263446Z [INFO] processing annotation round 36 for com.shop.generated.Mapper36
+2026-10-30T14:06:35.9581239Z [INFO] processing annotation round 37 for com.shop.generated.Mapper37
+2026-10-30T14:06:36.2341639Z [INFO] processing annotation round 38 for com.shop.generated.Mapper38
+2026-10-30T14:06:37.1910414Z [INFO] processing annotation round 39 for com.shop.generated.Mapper39
+2026-10-30T14:06:38.9454442Z [ERROR] COMPILATION ERROR : 
+2026-10-30T14:06:39.7339482Z [ERROR] /home/runner/work/shop/shop/src/main/java/com/shop/order/OrderService.java:[87,29] cannot find symbol
+2026-10-30T14:06:40.3284817Z [ERROR]   symbol:   method getTotalPrice()
+2026-10-30T14:06:41.1433799Z [ERROR]   location: variable cart of type com.shop.cart.Cart
+2026-10-30T14:06:42.2113682Z [ERROR] /home/runner/work/shop/shop/src/main/java/com/shop/order/InvoiceBuilder.java:[41,18] cannot find symbol
+2026-10-30T14:06:43.2838582Z [ERROR]   symbol:   method getTotalPrice()
+2026-10-30T14:06:44.4249869Z [ERROR]   location: variable cart of type com.shop.cart.Cart
+2026-10-30T14:06:45.3208174Z [INFO] 2 errors
+2026-10-30T14:06:46.3770111Z [INFO] Reactor summary detail line 0: module shop-common SUCCESS [ 8.394 s]
+2026-10-30T14:06:47.6887081Z [INFO] Reactor summary detail line 1: module shop-common SUCCESS [ 4.167 s]
+2026-10-30T14:06:48.6433116Z [INFO] Reactor summary detail line 2: module shop-common SUCCESS [ 5.262 s]
+2026-10-30T14:06:49.8657169Z [INFO] Reactor summary detail line 3: module shop-common SUCCESS [ 5.935 s]
+2026-10-30T14:06:50.9425818Z [INFO] Reactor summary detail line 4: module shop-common SUCCESS [ 3.360 s]
+2026-10-30T14:06:51.5410187Z [INFO] Reactor summary detail line 5: module shop-common SUCCESS [ 8.313 s]
+2026-10-30T14:06:52.6353232Z [INFO] Reactor summary detail line 6: module shop-common SUCCESS [ 9.343 s]
+2026-10-30T14:06:53.4337695Z [INFO] Reactor summary detail line 7: module shop-common SUCCESS [ 6.137 s]
+2026-10-30T14:06:54.3704979Z [INFO] Reactor summary detail line 8: module shop-common SUCCESS [ 3.513 s]
+2026-10-30T14:06:55.6499979Z [INFO] Reactor summary detail line 9: module shop-common SUCCESS [ 5.795 s]
+2026-10-30T14:06:56.5434903Z [INFO] Reactor summary detail line 10: module shop-common SUCCESS [ 7.272 s]
+2026-10-30T14:06:57.9904024Z [INFO] Reactor summary detail line 11: module shop-common SUCCESS [ 2.886 s]
+2026-10-30T14:06:58.7036092Z [INFO] Reactor summary detail line 12: module shop-common SUCCESS [ 1.751 s]
+2026-10-30T14:06:59.9748521Z [INFO] Reactor summary detail line 13: module shop-common SUCCESS [ 8.668 s]
+2026-10-30T14:07:00.9987575Z [INFO] Reactor summary detail line 14: module shop-common SUCCESS [ 2.358 s]
+2026-10-30T14:07:01.7232169Z [INFO] Reactor summary detail line 15: module shop-common SUCCESS [ 7.855 s]
+2026-10-30T14:07:02.7189861Z [INFO] Reactor summary detail line 16: module shop-common SUCCESS [ 5.484 s]
+2026-10-30T14:07:03.6550387Z [INFO] Reactor summary detail line 17: module shop-common SUCCESS [ 3.468 s]
+2026-10-30T14:07:04.4859553Z [INFO] Reactor summary detail line 18: module shop-common SUCCESS [ 2.552 s]
+2026-10-30T14:07:05.1810196Z [INFO] Reactor summary detail line 19: module shop-common SUCCESS [ 3.730 s]
+2026-10-30T14:07:06.9658834Z [INFO] Reactor summary detail line 20: module shop-common SUCCESS [ 5.939 s]
+2026-10-30T14:07:07.6245376Z [INFO] Reactor summary detail line 21: module shop-common SUCCESS [ 5.417 s]
+2026-10-30T14:07:08.1566955Z [INFO] Reactor summary detail line 22: module shop-common SUCCESS [ 1.865 s]
+2026-10-30T14:07:09.5881693Z [INFO] Reactor summary detail line 23: module shop-common SUCCESS [ 4.252 s]
+2026-10-30T14:07:10.9601309Z [INFO] Reactor summary detail line 24: module shop-common SUCCESS [ 7.527 s]
+2026-10-30T14:07:11.3214983Z [INFO] Reactor summary detail line 25: module shop-common SUCCESS [ 6.148 s]
+2026-10-30T14:07:12.1764767Z [INFO] Reactor summary detail line 26: module shop-common SUCCESS [ 8.332 s]
+2026-10-30T14:07:13.1043880Z [INFO] Reactor summary detail line 27: module shop-common SUCCESS [ 1.155 s]
+2026-10-30T14:07:14.2784469Z [INFO] Reactor summary detail line 28: module shop-common SUCCESS [ 6.411 s]
+2026-10-30T14:07:15.9960931Z [INFO] Reactor summary detail line 29: module shop-common SUCCESS [ 9.465 s]
+2026-10-30T14:07:16.6052542Z [INFO] Reactor summary detail line 30: module shop-common SUCCESS [ 4.523 s]
+2026-10-30T14:07:17.7144395Z [INFO] Reactor summary detail line 31: module shop-common SUCCESS [ 3.309 s]
+2026-10-30T14:07:18.3260708Z [INFO] Reactor summary detail line 32: module shop-common SUCCESS [ 8.262 s]
+2026-10-30T14:07:19.5086732Z [INFO] Reactor summary detail line 33: module shop-common SUCCESS [ 1.920 s]
+2026-10-30T14:07:20.2607335Z [INFO] Reactor summary detail line 34: module shop-common SUCCESS [ 3.561 s]
+2026-10-30T14:07:21.3427522Z [INFO] Reactor summary detail line 35: module shop-common SUCCESS [ 2.753 s]
+2026-10-30T14:07:22.5433208Z [INFO] Reactor summary detail line 36: module shop-common SUCCESS [ 5.511 s]
+2026-10-30T14:07:23.6877607Z [INFO] Reactor summary detail line 37: module shop-common SUCCESS [ 1.157 s]
+2026-10-30T14:07:24.9683593Z [INFO] Reactor summary detail line 38: module shop-common SUCCESS [ 8.716 s]
+2026-10-30T14:07:25.3769904Z [INFO] Reactor summary detail line 39: module shop-common SUCCESS [ 8.354 s]
+2026-10-30T14:07:26.2032277Z [INFO] Reactor summary detail line 40: module shop-common SUCCESS [ 1.145 s]
+2026-10-30T14:07:27.7811360Z [INFO] Reactor summary detail line 41: module shop-common SUCCESS [ 9.125 s]
+2026-10-30T14:07:28.3671211Z [INFO] Reactor summary detail line 42: module shop-common SUCCESS [ 3.343 s]
+2026-10-30T14:07:29.2760229Z [INFO] Reactor summary detail line 43: module shop-common SUCCESS [ 1.897 s]
+2026-10-30T14:07:30.4309442Z [INFO] Reactor summary detail line 44: module shop-common SUCCESS [ 1.727 s]
+2026-10-30T14:07:31.4347361Z [INFO] Reactor summary detail line 45: module shop-common SUCCESS [ 3.523 s]
+2026-10-30T14:07:32.9505179Z [INFO] Reactor summary detail line 46: module shop-common SUCCESS [ 9.722 s]
+2026-10-30T14:07:33.3929964Z [INFO] Reactor summary detail line 47: module shop-common SUCCESS [ 7.932 s]
+2026-10-30T14:07:34.2069835Z [INFO] Reactor summary detail line 48: module shop-common SUCCESS [ 9.416 s]
+2026-10-30T14:07:35.1813540Z [INFO] Reactor summary detail line 49: module shop-common SUCCESS [ 5.740 s]
+2026-10-30T14:07:36.1106525Z [INFO] Reactor summary detail line 50: module shop-common SUCCESS [ 8.832 s]
+2026-10-30T14:07:37.8325728Z [INFO] Reactor summary detail line 51: module shop-common SUCCESS [ 7.964 s]
+2026-10-30T14:07:38.8591476Z [INFO] Reactor summary detail line 52: module shop-common SUCCESS [ 8.182 s]
+2026-10-30T14:07:39.2766333Z [INFO] Reactor summary detail line 53: module shop-common SUCCESS [ 3.331 s]
+2026-10-30T14:07:40.1651250Z [INFO] Reactor summary detail line 54: module shop-common SUCCESS [ 5.337 s]
+2026-10-30T14:07:41.5417416Z [INFO] Reactor summary detail line 55: module shop-common SUCCESS [ 2.443 s]
+2026-10-30T14:07:42.8315750Z [INFO] Reactor summary detail line 56: module shop-common SUCCESS [ 1.372 s]
+2026-10-30T14:07:43.5959630Z [INFO] Reactor summary detail line 57: module shop-common SUCCESS [ 9.371 s]
+2026-10-30T14:07:44.9513238Z [INFO] Reactor summary detail line 58: module shop-common SUCCESS [ 4.187 s]
+2026-10-30T14:07:45.5368261Z [INFO] Reactor summary detail line 59: module shop-common SUCCESS [ 1.273 s]
+2026-10-30T14:07:46.4402023Z [INFO] Reactor summary detail line 60: module shop-common SUCCESS [ 4.961 s]
+2026-10-30T14:07:47.6483992Z [INFO] Reactor summary detail line 61: module shop-common SUCCESS [ 3.864 s]
+2026-10-30T14:07:48.6512216Z [INFO] Reactor summary detail line 62: module shop-common SUCCESS [ 4.498 s]
+2026-10-30T14:07:49.9998559Z [INFO] Reactor summary detail line 63: module shop-common SUCCESS [ 4.488 s]
+2026-10-30T14:07:50.9902297Z [INFO] Reactor summary detail line 64: module shop-common SUCCESS [ 8.583 s]
+2026-10-30T14:07:51.1444877Z [INFO] Reactor summary detail line 65: module shop-common SUCCESS [ 1.978 s]
+2026-10-30T14:07:52.4922990Z [INFO] Reactor summary detail line 66: module shop-common SUCCESS [ 7.842 s]
+2026-10-30T14:07:53.4556201Z [INFO] Reactor summary detail line 67: module shop-common SUCCESS [ 5.908 s]
+2026-10-30T14:07:54.2305306Z [INFO] Reactor summary detail line 68: module shop-common SUCCESS [ 7.737 s]
+2026-10-30T14:07:55.1552198Z [INFO] Reactor summary detail line 69: module shop-common SUCCESS [ 3.248 s]
+2026-10-30T14:07:56.2789766Z [INFO] Reactor summary detail line 70: module shop-common SUCCESS [ 1.214 s]
+2026-10-30T14:07:57.3379706Z [INFO] Reactor summary detail line 71: module shop-common SUCCESS [ 3.453 s]
+2026-10-30T14:07:58.1698761Z [INFO] Reactor summary detail line 72: module shop-common SUCCESS [ 1.131 s]
+2026-10-30T14:07:59.1715486Z [INFO] Reactor summary detail line 73: module shop-common SUCCESS [ 3.809 s]
+2026-10-30T14:08:00.1783312Z [INFO] Reactor summary detail line 74: module shop-common SUCCESS [ 2.854 s]
+2026-10-30T14:08:01.7096942Z [INFO] Reactor summary detail line 75: module shop-common SUCCESS [ 2.977 s]
+2026-10-30T14:08:02.9957257Z [INFO] Reactor summary detail line 76: module shop-common SUCCESS [ 4.937 s]
+2026-10-30T14:08:03.7439811Z [INFO] Reactor summary detail line 77: module shop-common SUCCESS [ 2.988 s]
+2026-10-30T14:08:04.4451466Z [INFO] Reactor summary detail line 78: module shop-common SUCCESS [ 2.352 s]
+2026-10-30T14:08:05.1568087Z [INFO] Reactor summary detail line 79: module shop-common SUCCESS [ 4.214 s]
+2026-10-30T14:08:06.2467498Z [INFO] Reactor summary detail line 80: module shop-common SUCCESS [ 1.968 s]
+2026-10-30T14:08:07.2675659Z [INFO] Reactor summary detail line 81: module shop-common SUCCESS [ 5.588 s]
+2026-10-30T14:08:08.4439219Z [INFO] Reactor summary detail line 82: module shop-common SUCCESS [ 3.200 s]
+2026-10-30T14:08:09.6645798Z [INFO] Reactor summary detail line 83: module shop-common SUCCESS [ 5.426 s]
+2026-10-30T14:08:10.1350953Z [INFO] Reactor summary detail line 84: module shop-common SUCCESS [ 7.367 s]
+2026-10-30T14:08:11.5741127Z [INFO] Reactor summary detail line 85: module shop-common SUCCESS [ 6.362 s]
+2026-10-30T14:08:12.7174423Z [INFO] Reactor summary detail line 86: module shop-common SUCCESS [ 1.832 s]
+2026-10-30T14:08:13.9451309Z [INFO] Reactor summary detail line 87: module shop-common SUCCESS [ 6.887 s]
+2026-10-30T14:08:14.5825945Z [INFO] Reactor summary detail line 88: module shop-common SUCCESS [ 8.971 s]
+2026-10-30T14:08:15.7927663Z [INFO] Reactor summary detail line 89: module shop-common SUCCESS [ 1.907 s]
+2026-10-30T14:08:16.9701039Z [INFO] Reactor summary detail line 90: module shop-common SUCCESS [ 1.546 s]
+2026-10-30T14:08:17.8867535Z [INFO] Reactor summary detail line 91: module shop-common SUCCESS [ 2.455 s]
+2026-10-30T14:08:18.4633513Z [INFO] Reactor summary detail line 92: module shop-common SUCCESS [ 1.650 s]
+2026-10-30T14:08:19.5816901Z [INFO] Reactor summary detail line 93: module shop-common SUCCESS [ 2.688 s]
+2026-10-30T14:08:20.1021794Z [INFO] Reactor summary detail line 94: module shop-common SUCCESS [ 3.546 s]
+2026-10-30T14:08:21.5837452Z [INFO] Reactor summary detail line 95: module shop-common SUCCESS [ 9.306 s]
+2026-10-30T14:08:22.6835177Z [INFO] Reactor summary detail line 96: module shop-common SUCCESS [ 1.104 s]
+2026-10-30T14:08:23.9245734Z [INFO] Reactor summary detail line 97: module shop-common SUCCESS [ 8.197 s]
+2026-10-30T14:08:24.6824809Z [INFO] Reactor summary detail line 98: module shop-common SUCCESS [ 3.606 s]
+2026-10-30T14:08:25.3665821Z [INFO] Reactor summary detail line 99: module shop-common SUCCESS [ 9.366 s]
+2026-10-30T14:08:26.4602308Z [INFO] Reactor summary detail line 100: module shop-common SUCCESS [ 5.934 s]
+2026-10-30T14:08:27.3781511Z [INFO] Reactor summary detail line 101: module shop-common SUCCESS [ 4.610 s]
+2026-10-30T14:08:28.2356984Z [INFO] Reactor summary detail line 102: module shop-common SUCCESS [ 2.751 s]
+2026-10-30T14:08:29.2754190Z [INFO] Reactor summary detail line 103: module shop-common SUCCESS [ 8.906 s]
+2026-10-30T14:08:30.2596326Z [INFO] Reactor summary detail line 104: module shop-common SUCCESS [ 6.464 s]
+2026-10-30T14:08:31.2445741Z [INFO] Reactor summary detail line 105: module shop-common SUCCESS [ 7.504 s]
+2026-10-30T14:08:32.1422350Z [INFO] Reactor summary detail line 106: module shop-common SUCCESS [ 7.761 s]
+2026-10-30T14:08:33.6085862Z [INFO] Reactor summary detail line 107: module shop-common SUCCESS [ 6.311 s]
+2026-10-30T14:08:34.9408575Z [INFO] Reactor summary detail line 108: module shop-common SUCCESS [ 5.538 s]
+2026-10-30T14:08:35.4918747Z [INFO] Reactor summary detail line 109: module shop-common SUCCESS [ 3.488 s]
+2026-10-30T14:08:36.9917838Z [INFO] Reactor summary detail line 110: module shop-common SUCCESS [ 8.229 s]
+2026-10-30T14:08:37.6480448Z [INFO] Reactor summary detail line 111: module shop-common SUCCESS [ 1.456 s]
+2026-10-30T14:08:38.8554890Z [INFO] Reactor summary detail line 112: module shop-common SUCCESS [ 9.259 s]
+2026-10-30T14:08:39.6424642Z [INFO] Reactor summary detail line 113: module shop-common SUCCESS [ 9.859 s]
+2026-10-30T14:08:40.8361809Z [INFO] Reactor summary detail line 114: module shop-common SUCCESS [ 3.574 s]
+2026-10-30T14:08:41.4875947Z [INFO] Reactor summary detail line 115: module shop-common SUCCESS [ 5.693 s]
+2026-10-30T14:08:42.8751375Z [INFO] Reactor summary detail line 116: module shop-common SUCCESS [ 3.442 s]
+2026-10-30T14:08:43.4214074Z [INFO] Reactor summary detail line 117: module shop-common SUCCESS [ 4.619 s]
+2026-10-30T14:08:44.3593662Z [INFO] Reactor summary detail line 118: module shop-common SUCCESS [ 5.408 s]
+2026-10-30T14:08:45.6478810Z [INFO] Reactor summary detail line 119: module shop-common SUCCESS [ 3.353 s]
+2026-10-30T14:08:46.3699862Z [INFO] Reactor summary detail line 120: module shop-common SUCCESS [ 9.456 s]
+2026-10-30T14:08:47.4175480Z [INFO] Reactor summary detail line 121: module shop-common SUCCESS [ 4.435 s]
+2026-10-30T14:08:48.2708030Z [INFO] Reactor summary detail line 122: module shop-common SUCCESS [ 5.846 s]
+2026-10-30T14:08:49.2705202Z [INFO] Reactor summary detail line 123: module shop-common SUCCESS [ 3.773 s]
+2026-10-30T14:08:50.3532690Z [INFO] Reactor summary detail line 124: module shop-common SUCCESS [ 4.493 s]
+2026-10-30T14:08:51.6068485Z [INFO] Reactor summary detail line 125: module shop-common SUCCESS [ 3.913 s]
+2026-10-30T14:08:52.5593946Z [INFO] Reactor summary detail line 126: module shop-common SUCCESS [ 5.545 s]
+2026-10-30T14:08:53.2792976Z [INFO] Reactor summary detail line 127: module shop-common SUCCESS [ 4.211 s]
+2026-10-30T14:08:54.7515284Z [INFO] Reactor summary detail line 128: module shop-common SUCCESS [ 5.311 s]
+2026-10-30T14:08:55.1211683Z [INFO] Reactor summary detail line 129: module shop-common SUCCESS [ 8.134 s]
+2026-10-30T14:08:56.8323725Z [INFO] Reactor summary detail line 130: module shop-common SUCCESS [ 7.974 s]
+2026-10-30T14:08:57.5969634Z [INFO] Reactor summary detail line 131: module shop-common SUCCESS [ 4.612 s]
+2026-10-30T14:08:58.3379219Z [INFO] Reactor summary detail line 132: module shop-common SUCCESS [ 8.122 s]
+2026-10-30T14:08:59.7789963Z [INFO] Reactor summary detail line 133: module shop-common SUCCESS [ 5.718 s]
+2026-10-30T14:09:00.5064855Z [INFO] Reactor summary detail line 134: module shop-common SUCCESS [ 1.858 s]
+2026-10-30T14:09:01.8065805Z [INFO] Reactor summary detail line 135: module shop-common SUCCESS [ 7.817 s]
+2026-10-30T14:09:02.4835374Z [INFO] Reactor summary detail line 136: module shop-common SUCCESS [ 4.783 s]
+2026-10-30T14:09:03.3083990Z [INFO] Reactor summary detail line 137: module shop-common SUCCESS [ 3.756 s]
+2026-10-30T14:09:04.6251508Z [INFO] Reactor summary detail line 138: module shop-common SUCCESS [ 8.542 s]
+2026-10-30T14:09:05.2641932Z [INFO] Reactor summary detail line 139: module shop-common SUCCESS [ 5.743 s]
+2026-10-30T14:09:06.7713100Z [INFO] Reactor summary detail line 140: module shop-common SUCCESS [ 7.348 s]
+2026-10-30T14:09:07.8106490Z [INFO] Reactor summary detail line 141: module shop-common SUCCESS [ 3.356 s]
+2026-10-30T14:09:08.1329794Z [INFO] Reactor summary detail line 142: module shop-common SUCCESS [ 8.566 s]
+2026-10-30T14:09:09.4071271Z [INFO] Reactor summary detail line 143: module shop-common SUCCESS [ 7.630 s]
+2026-10-30T14:09:10.1178377Z [INFO] Reactor summary detail line 144: module shop-common SUCCESS [ 6.896 s]
+2026-10-30T14:09:11.9218154Z [INFO] Reactor summary detail line 145: module shop-common SUCCESS [ 7.951 s]
+2026-10-30T14:09:12.5214824Z [INFO] Reactor summary detail line 146: module shop-common SUCCESS [ 2.139 s]
+2026-10-30T14:09:13.3698491Z [INFO] Reactor summary detail line 147: module shop-common SUCCESS [ 9.323 s]
+2026-10-30T14:09:14.6841952Z [INFO] Reactor summary detail line 148: module shop-common SUCCESS [ 4.631 s]
+2026-10-30T14:09:15.8663575Z [INFO] Reactor summary detail line 149: module shop-common SUCCESS [ 2.967 s]
+2026-10-30T14:09:16.4439025Z [INFO] BUILD FAILURE
+2026-10-30T14:09:17.8981517Z [INFO] Total time:  02:41 min
+2026-10-30T14:09:18.9593141Z [ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.13.0:compile (default-compile) on project shop-service: Compilation failure
+2026-10-30T14:09:19.1270221Z [ERROR] -> [Help 1]
+2026-10-30T14:09:20.7206125Z ##[error]Process completed with exit code 1.

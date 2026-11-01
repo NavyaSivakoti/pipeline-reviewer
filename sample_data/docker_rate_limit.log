@@ -1,0 +1,17 @@
+2026-10-30T17:20:00Z ##[group]Run docker build -t shop-api:ci .
+2026-10-30T17:20:01Z #0 building with "default" instance using docker driver
+2026-10-30T17:20:01Z #1 [internal] load build definition from Dockerfile
+2026-10-30T17:20:01Z #1 transferring dockerfile: 512B done
+2026-10-30T17:20:01Z #1 DONE 0.0s
+2026-10-30T17:20:01Z #2 [internal] load metadata for docker.io/library/python:3.11-slim
+2026-10-30T17:20:02Z #2 ERROR: unexpected status from HEAD request to https://registry-1.docker.io/v2/library/python/manifests/3.11-slim: 429 Too Many Requests
+2026-10-30T17:20:02Z ------
+2026-10-30T17:20:02Z  > [internal] load metadata for docker.io/library/python:3.11-slim:
+2026-10-30T17:20:02Z ------
+2026-10-30T17:20:02Z Dockerfile:1
+2026-10-30T17:20:02Z --------------------
+2026-10-30T17:20:02Z    1 | >>> FROM python:3.11-slim
+2026-10-30T17:20:02Z    2 |     WORKDIR /app
+2026-10-30T17:20:02Z --------------------
+2026-10-30T17:20:02Z ERROR: failed to solve: python:3.11-slim: failed to resolve source metadata for docker.io/library/python:3.11-slim: toomanyrequests: You have reached your pull rate limit. You may increase the limit by authenticating and upgrading: https://www.docker.com/increase-rate-limit
+2026-10-30T17:20:02Z ##[error]Process completed with exit code 1.

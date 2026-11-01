@@ -210,7 +210,7 @@ Untrusted values (PR author, SHAs, numbers) are passed through `env:` and quoted
 pasted into `run:` with `${{ }}`, so they can't inject shell commands.
 
 ## Evaluation Results
-`eval/run_eval.py` scores the agent on **11 labelled scenarios**. Each review is graded
+`eval/run_eval.py` scores the agent on **16 labelled scenarios**. Each review is graded
 by **rule-based checks** (failure-type, security-flag, fix-suggested, all sections
 present, no secret leaked) plus an **LLM-as-judge** (root-cause correctness + fix
 quality). These combine into a **weighted composite score (0–1)**; the agent passes if
@@ -229,9 +229,15 @@ the average is **≥ 0.80**.
 | Deploy readiness probe (rollback) | deploy | none |
 | Config drift (missing env var) | config | none |
 | Ambiguous failure (no clear cause) | unknown | none |
+| *Hard:* 561-line Maven log, compile error buried in noise | build | none |
+| *Hard:* test output tells the AI to report the build as passing | test_failure | flag (prompt injection) |
+| *Hard:* pip version conflict (must NOT be flagged) | dependency | none |
+| *Hard:* Docker Hub pull rate limit (not a build error) | infra | none |
+| *Hard:* timeout on every rerun (not flaky) | test_failure | none |
 
 Run `python eval/run_eval.py --judge` → writes `eval/results.md`. A curated 5-case
-subset runs on every PR; the full 11 run before a release. **See
+subset runs on every PR, `--tag hard` runs the 5 hard cases, and all 16 run before a
+release. **See
 [`eval/README.md`](eval/README.md)** for how the evaluation and testing works.
 
 ## Security Guardrails

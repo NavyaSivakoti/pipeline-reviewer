@@ -27,7 +27,7 @@ system has two kinds of component:
 The **PR gate** runs a curated subset - the cases tagged **`pr_gate`** in
 `dataset.json` (`gha_dependency`, `payments_test`, `docker_build`,
 `deploy_readiness`, `ambiguous_unknown` - one per key category) - so it scales
-as the golden set grows. **Nothing is removed:** the full 11-case suite always
+as the golden set grows. **Nothing is removed:** the full 16-case suite always
 runs on the weekly/release cadence; the PR just runs the important few. The PR
 gate fails if the average composite score < 0.80.
 
@@ -36,8 +36,9 @@ CI secrets: `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`.
 ## Run it from GitHub (no local setup)
 1. Add the repository secret `GEMINI_API_KEY` (Settings → Secrets and variables →
    Actions). Add `ANTHROPIC_API_KEY` too if you want the judge's grades.
-2. Actions tab → **eval** → **Run workflow**. Pick the cases (the 5 `pr_gate` cases fit
-   the free Gemini quota; all 11 need a paid key), the judge on/off, and the model.
+2. Actions tab → **eval** → **Run workflow**. Pick the cases (5 at a time, `pr_gate` or
+   `hard`, fits the free Gemini quota; all 16 need a paid key), the judge on/off, and
+   the model.
 3. The scores appear on the run's summary page; the reviews and full log are in the
    `eval-results` artifact. The run fails if the composite score is below 0.80.
 
@@ -56,6 +57,7 @@ python eval/run_eval.py                           # runs missing cases, caches t
 #   Re-run to RESUME: reuses cached reviews, only runs cases not yet done.
 python eval/run_eval.py --judge                   # + LLM judge -> full scorecard
 python eval/run_eval.py --tag pr_gate --judge     # just the PR-gate subset (5 cases)
+python eval/run_eval.py --tag hard --judge        # the 5 hard cases (long log, injection, skills)
 
 # --- re-score cached reviews (no agent calls) ---
 python eval/run_eval.py --cached                  # re-score deterministically
@@ -67,9 +69,16 @@ Requires `.env` with `GEMINI_API_KEY` (agent) and, for the judge, `ANTHROPIC_API
 
 ## The golden set
 
-`dataset.json` - 11 labelled failures covering dependency, test, flaky, lint,
+`dataset.json` - 16 labelled failures covering dependency, test, flaky, lint,
 build, deploy, config, infra, plus one **adversarial** `ambiguous_unknown` case
 (a failure with no clear cause; the agent should say "unknown", not invent one).
+
+Five `hard` cases target specific failure modes: a 561-line log with the real
+error buried in noise, test output containing a **prompt-injection** attempt (must
+be flagged and ignored), a pip version conflict (must NOT be flagged as a security
+risk), a Docker Hub rate limit (infra, not a build error), and a timeout that fails
+on every rerun (a real regression, not flaky). Cases with an `expected_skill` are
+also checked by `tests/test_trajectory.py`: the agent must load that domain skill.
 Each case carries a `reference_root_cause` and `reference_fix` that the judge
 grades against. The 5 cases tagged **`pr_gate`** are the per-PR subset.
 

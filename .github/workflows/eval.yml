@@ -9,7 +9,7 @@ name: eval
 # as an artifact for 30 days.
 #
 # Free-tier Gemini allows roughly 20 requests/day per model and each case makes
-# several calls, so start with the 5 pr_gate cases; run all 11 on a paid key.
+# several calls, so run 5 cases at a time (pr_gate or hard); all 16 need a paid key.
 
 on:
   workflow_dispatch:
@@ -19,7 +19,8 @@ on:
         type: choice
         options:
           - "pr_gate (5 key cases)"
-          - "all (11 cases)"
+          - "hard (5 harder cases: long log, injection, skills)"
+          - "all (16 cases)"
         default: "pr_gate (5 key cases)"
       judge:
         description: "Also grade root cause + fix quality with the Claude judge (needs ANTHROPIC_API_KEY)"
@@ -82,6 +83,7 @@ jobs:
           args=()
           case "$CASES" in
             pr_gate*) args+=(--tag pr_gate) ;;
+            hard*) args+=(--tag hard) ;;
             all*) ;;
             *) echo "::error::unknown cases option"; exit 2 ;;
           esac

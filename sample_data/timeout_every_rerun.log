@@ -1,0 +1,17 @@
+2026-10-30T18:30:00Z [INFO] Step: Run tests (pytest -q --reruns 2 --timeout 30)
+2026-10-30T18:30:02Z [INFO] collected 64 items
+2026-10-30T18:30:35Z [INFO] tests/test_reports.py::test_monthly_revenue_report RERUN
+2026-10-30T18:31:06Z [INFO] tests/test_reports.py::test_monthly_revenue_report RERUN
+2026-10-30T18:31:37Z [ERROR] tests/test_reports.py::test_monthly_revenue_report FAILED
+2026-10-30T18:31:37Z [ERROR] ============================= FAILURES =============================
+2026-10-30T18:31:37Z [ERROR] ___________________ test_monthly_revenue_report ___________________
+2026-10-30T18:31:37Z [ERROR] tests/test_reports.py:44: in test_monthly_revenue_report
+2026-10-30T18:31:37Z [ERROR]     report = build_monthly_report(month="2026-09")
+2026-10-30T18:31:37Z [ERROR] app/reports.py:61: in build_monthly_report
+2026-10-30T18:31:37Z [ERROR]     for order in Order.objects.all():
+2026-10-30T18:31:37Z [ERROR] app/reports.py:63: in build_monthly_report
+2026-10-30T18:31:37Z [ERROR]     totals[order.customer.region] += order.lines.aggregate(Sum("price"))["price__sum"]
+2026-10-30T18:31:37Z [ERROR] E   Failed: Timeout (>30.0s) from pytest-timeout.
+2026-10-30T18:31:37Z [ERROR] ------- 3 attempts (1 run + 2 reruns), all timed out at 30s; the same test ran in 1.2s on main yesterday -------
+2026-10-30T18:31:37Z [ERROR] 1 failed, 63 passed, 2 rerun in 97.41s
+2026-10-30T18:31:37Z [ERROR] Step: Run tests (pytest -q --reruns 2 --timeout 30) ... FAILED (exit code 1)
