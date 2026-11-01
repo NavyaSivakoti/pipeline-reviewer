@@ -135,6 +135,23 @@ def score_review(review: str, case: dict) -> dict:
     }
 
 
+QUOTA_EXIT_CODE = 3   # distinct from 1 (scored below the bar) so CI can say why
+
+
+class QuotaExhausted(Exception):
+    """The model API's daily quota is used up: no point running more cases."""
+
+
+def write_quota_report(done: int, n: int, stopped_at: str) -> None:
+    msg = (f"Eval stopped: the Gemini API's **daily quota is used up** (at case "
+           f"`{stopped_at}`, after {done} of {n} cases). This says nothing about the "
+           "agent's quality. Re-run after the quota resets, or use a paid key. (Locally, "
+           "cases already reviewed are cached in eval/reviews/ and won't be re-run.)")
+    print("\n!! " + msg.replace("**", "").replace("`", ""), file=sys.stderr)
+    with open(RESULTS_MD, "w") as f:
+        f.write("# Evaluation results\n\n" + msg + "\n")
+
+
 def get_review(case: dict, cached: bool):
     """Return (review_text, tools_called). From disk if cached, else run the agent.
 
@@ -176,7 +193,10 @@ def get_review(case: dict, cached: bool):
 
     from agent_runner import run_agent, _is_complete  # lazy import so --cached needs no ADK
 
-    review = run_agent(case["artifacts"], on_event=on_event).get("review", "")
+    state = run_agent(case["artifacts"], on_event=on_event)
+    if state.get("review_error") == "daily_quota":
+        raise QuotaExhausted(case["id"])
+    review = state.get("review", "")
     if _is_complete(review):
         os.makedirs(REVIEWS_DIR, exist_ok=True)
         open(md, "w").write(review)
@@ -274,6 +294,11 @@ def main() -> None:
         try:
             review, _tools = get_review(c, args.cached)
             s = score_review(review, c)
+        except QuotaExhausted:
+            # Every remaining case would hit the same wall and score 0, making
+            # the agent look broken when it simply had no quota. Stop here.
+            write_quota_report(done=i - 1, n=n, stopped_at=c["id"])
+            sys.exit(QUOTA_EXIT_CODE)
         except Exception as e:  # noqa: BLE001
             print(f"    ERROR: {str(e)[:90]}")
             s = {k: False for k in DET_THRESHOLDS}

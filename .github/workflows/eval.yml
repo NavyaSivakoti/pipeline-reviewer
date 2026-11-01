@@ -124,6 +124,12 @@ jobs:
 
       - name: Fail the run if the eval did not pass
         if: steps.eval.outputs.code != '0'
+        env:
+          CODE: ${{ steps.eval.outputs.code }}
         run: |
-          echo "::error::Eval below the 0.80 threshold (or it could not run). See the summary above."
+          case "$CODE" in
+            3) echo "::error title=Gemini daily quota used up::The eval stopped early because the API's daily quota is used up. This is not a quality result: re-run after the quota resets, or use a paid key." ;;
+            1) echo "::error::Eval below the 0.80 threshold. See the summary above." ;;
+            *) echo "::error::The eval could not run (exit code $CODE). See the log in the eval-results artifact." ;;
+          esac
           exit 1

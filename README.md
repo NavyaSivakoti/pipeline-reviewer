@@ -173,6 +173,7 @@ jobs:
           test "$(git -C reviewer rev-parse HEAD)" = "$REVIEWER_SHA"
 
       - name: AI review
+        id: review
         if: steps.tests.outputs.code != '0' && env.HAS_GEMINI_KEY == 'true'
         env:
           GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -195,6 +196,12 @@ jobs:
           else
             python reviewer/post_review.py --repo "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --review review.md
           fi
+
+      - name: Warn when the AI review was skipped (quota, rate limit)
+        if: steps.review.outputs.review_error != ''
+        env:
+          REVIEW_ERROR: ${{ steps.review.outputs.review_error }}
+        run: echo "::warning title=AI review skipped::$REVIEW_ERROR (details on the run summary page)"
 
       - name: Mark the review resolved when CI passes
         if: steps.tests.outputs.code == '0' && env.PR_NUMBER != '' && env.HAS_GEMINI_KEY == 'true'
