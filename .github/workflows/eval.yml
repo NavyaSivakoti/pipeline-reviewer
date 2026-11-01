@@ -1,0 +1,127 @@
+name: eval
+
+# Run the agent evaluation on demand: Actions tab -> "eval" -> "Run workflow".
+# No local setup needed; it runs on GitHub's machines with the repo's secrets.
+#
+# Needs the GEMINI_API_KEY repository secret (Settings -> Secrets and variables
+# -> Actions). The optional LLM judge (root-cause + fix-quality grades) also
+# needs ANTHROPIC_API_KEY. Results show on the run's summary page and are kept
+# as an artifact for 30 days.
+#
+# Free-tier Gemini allows roughly 20 requests/day per model and each case makes
+# several calls, so start with the 5 pr_gate cases; run all 11 on a paid key.
+
+on:
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: "Which cases to run"
+        type: choice
+        options:
+          - "pr_gate (5 key cases)"
+          - "all (11 cases)"
+        default: "pr_gate (5 key cases)"
+      judge:
+        description: "Also grade root cause + fix quality with the Claude judge (needs ANTHROPIC_API_KEY)"
+        type: boolean
+        default: false
+      model:
+        description: "Gemini model for the agent"
+        type: choice
+        options:
+          - gemini-2.5-flash
+          - gemini-3.1-flash-lite
+        default: gemini-2.5-flash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CASES: ${{ inputs.cases }}
+      WANT_JUDGE: ${{ inputs.judge }}
+      GEMINI_MODEL: ${{ inputs.model }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Check the secrets are set
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Add the GEMINI_API_KEY repository secret (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          if [ "$WANT_JUDGE" = "true" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::The judge needs the ANTHROPIC_API_KEY repository secret (or run without the judge)."
+            exit 1
+          fi
+
+      - name: Run the eval
+        id: eval
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_GENAI_USE_VERTEXAI: "False"
+        run: |
+          args=()
+          case "$CASES" in
+            pr_gate*) args+=(--tag pr_gate) ;;
+            all*) ;;
+            *) echo "::error::unknown cases option"; exit 2 ;;
+          esac
+          if [ "$WANT_JUDGE" = "true" ]; then args+=(--judge); fi
+          set +e
+          python eval/run_eval.py "${args[@]}" 2>&1 | tee eval-output.log
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Show the results on the run page
+        if: always()
+        run: |
+          {
+            echo "## Pipeline Reviewer eval"
+            echo
+            echo "Model \`$GEMINI_MODEL\` · cases: $CASES · judge: $WANT_JUDGE · commit \`${GITHUB_SHA::7}\`"
+            echo
+            if [ -f eval/results.md ]; then
+              cat eval/results.md
+            else
+              echo "No results.md was written. Last lines of the output:"
+              echo '```'
+              tail -n 60 eval-output.log 2>/dev/null || echo "(no output)"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: eval-results
+          path: |
+            eval/results.md
+            eval/reviews/
+            eval-output.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Fail the run if the eval did not pass
+        if: steps.eval.outputs.code != '0'
+        run: |
+          echo "::error::Eval below the 0.80 threshold (or it could not run). See the summary above."
+          exit 1
