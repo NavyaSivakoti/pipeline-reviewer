@@ -46,3 +46,16 @@ def test_xml_case_calls_parse_junit():
 def test_every_case_calls_recurrence():
     for cid in ("flaky_test", "lint_only", "docker_build"):
         assert "check_recurrence" in _names(cid), f"{cid} did not call check_recurrence"
+
+
+def _cases_with_skill():
+    path = os.path.join(os.path.dirname(__file__), "..", "eval", "dataset.json")
+    return [c for c in json.load(open(path)) if c.get("expected_skill")]
+
+
+@pytest.mark.parametrize("case", _cases_with_skill(), ids=lambda c: c["id"])
+def test_case_loads_its_domain_skill(case):
+    calls = [c for c in _tool_calls(case["id"]) if c.get("name") == "load_skill"]
+    loaded = json.dumps(calls).lower()
+    assert case["expected_skill"] in loaded, (
+        f"{case['id']} should load the {case['expected_skill']} skill; loaded: {loaded or 'none'}")

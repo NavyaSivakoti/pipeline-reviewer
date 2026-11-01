@@ -46,9 +46,26 @@ environmental instead.
                      printed locally  ──OR──  posted as a commit/PR comment
                                               by the GitHub Action (autonomy)
 ```
-A single, focused agent loads its expertise from a **skill file** (`skills/review.md`)
-and reasons over tool output. `agent_runner.py` adds retry/backoff **and a
-completeness guard** (never posts a blank/truncated review) for the free tier.
+A single, focused agent loads its expertise from **skill files** and reasons over tool
+output. `agent_runner.py` adds retry/backoff **and a completeness guard** (never posts
+a blank/truncated review) for the free tier.
+
+### Skills
+`skills/review.md` is the **core skill** (classification, root cause, fix, security)
+and is always in the prompt. **Domain skills** are loaded only when a failure needs
+them: the prompt carries a one-line catalog, and the agent calls `load_skill(name)`
+(see [`skill_loader.py`](skill_loader.py)).
+
+| Skill | Loaded for |
+|---|---|
+| `flaky-tests` | timeouts and intermittent failures: flaky vs real regression, by evidence |
+| `dependency-failures` | pip / Poetry / Maven / Gradle / npm resolution errors, conflicts, typosquats, registry auth |
+| `docker-builds` | image pulls and rate limits, apt / wheel build errors, build context, platform, registry auth |
+
+**Adding a skill:** create `skills/<name>.md` with frontmatter `name: <name>` (must match
+the file name) and a one-line `description:` saying when to use it, end it with a
+**Verify** section, and add an eval case with `"expected_skill": "<name>"` so the
+trajectory test checks the agent actually loads it.
 
 ## Tools Used
 | Tool | What it does | What it enables |
@@ -110,7 +127,7 @@ permissions:
 
 jobs:
   test-and-review:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest is moving to Ubuntu 26
     permissions:
       contents: write          # commit comments (pushes without a PR)
       pull-requests: write     # the PR comment
@@ -193,7 +210,7 @@ Untrusted values (PR author, SHAs, numbers) are passed through `env:` and quoted
 pasted into `run:` with `${{ }}`, so they can't inject shell commands.
 
 ## Evaluation Results
-`eval/run_eval.py` scores the agent on **11 labelled scenarios**. Each review is graded
+`eval/run_eval.py` scores the agent on **16 labelled scenarios**. Each review is graded
 by **rule-based checks** (failure-type, security-flag, fix-suggested, all sections
 present, no secret leaked) plus an **LLM-as-judge** (root-cause correctness + fix
 quality). These combine into a **weighted composite score (0–1)**; the agent passes if
@@ -212,9 +229,15 @@ the average is **≥ 0.80**.
 | Deploy readiness probe (rollback) | deploy | none |
 | Config drift (missing env var) | config | none |
 | Ambiguous failure (no clear cause) | unknown | none |
+| *Hard:* 561-line Maven log, compile error buried in noise | build | none |
+| *Hard:* test output tells the AI to report the build as passing | test_failure | flag (prompt injection) |
+| *Hard:* pip version conflict (must NOT be flagged) | dependency | none |
+| *Hard:* Docker Hub pull rate limit (not a build error) | infra | none |
+| *Hard:* timeout on every rerun (not flaky) | test_failure | none |
 
 Run `python eval/run_eval.py --judge` → writes `eval/results.md`. A curated 5-case
-subset runs on every PR; the full 11 run before a release. **See
+subset runs on every PR, `--tag hard` runs the 5 hard cases, and all 16 run before a
+release. **See
 [`eval/README.md`](eval/README.md)** for how the evaluation and testing works.
 
 ## Security Guardrails
@@ -259,7 +282,11 @@ subset runs on every PR; the full 11 run before a release. **See
   but not another PR's.
 - Free-tier Gemini is rate-limited and occasionally overloaded (429/503), and can
   return a blank/truncated review; the runner retries on all of these and posts an
-  honest "re-run" placeholder rather than a mangled comment.
+  honest "re-run" placeholder rather than a mangled comment. It stops at once when
+  the **daily** quota is used up (waiting can't fix that), and caps the total retry
+  wait at 300s (`REVIEW_MAX_RETRY_WAIT`) so a CI job never hangs on a busy model.
+  If a review already exists in the PR comment, a placeholder doesn't replace it:
+  the comment keeps the last real review and notes that the latest run wasn't reviewed.
 
 ### Recurrence memory in CI
 Failures are matched by a **fingerprint computed in code** from the normalized error
