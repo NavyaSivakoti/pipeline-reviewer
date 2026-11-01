@@ -127,7 +127,7 @@ permissions:
 
 jobs:
   test-and-review:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest is moving to Ubuntu 26
     permissions:
       contents: write          # commit comments (pushes without a PR)
       pull-requests: write     # the PR comment
