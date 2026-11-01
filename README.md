@@ -46,9 +46,26 @@ environmental instead.
                      printed locally  ──OR──  posted as a commit/PR comment
                                               by the GitHub Action (autonomy)
 ```
-A single, focused agent loads its expertise from a **skill file** (`skills/review.md`)
-and reasons over tool output. `agent_runner.py` adds retry/backoff **and a
-completeness guard** (never posts a blank/truncated review) for the free tier.
+A single, focused agent loads its expertise from **skill files** and reasons over tool
+output. `agent_runner.py` adds retry/backoff **and a completeness guard** (never posts
+a blank/truncated review) for the free tier.
+
+### Skills
+`skills/review.md` is the **core skill** (classification, root cause, fix, security)
+and is always in the prompt. **Domain skills** are loaded only when a failure needs
+them: the prompt carries a one-line catalog, and the agent calls `load_skill(name)`
+(see [`skill_loader.py`](skill_loader.py)).
+
+| Skill | Loaded for |
+|---|---|
+| `flaky-tests` | timeouts and intermittent failures: flaky vs real regression, by evidence |
+| `dependency-failures` | pip / Poetry / Maven / Gradle / npm resolution errors, conflicts, typosquats, registry auth |
+| `docker-builds` | image pulls and rate limits, apt / wheel build errors, build context, platform, registry auth |
+
+**Adding a skill:** create `skills/<name>.md` with frontmatter `name: <name>` (must match
+the file name) and a one-line `description:` saying when to use it, end it with a
+**Verify** section, and add an eval case with `"expected_skill": "<name>"` so the
+trajectory test checks the agent actually loads it.
 
 ## Tools Used
 | Tool | What it does | What it enables |
