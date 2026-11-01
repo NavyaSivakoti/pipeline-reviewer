@@ -70,7 +70,7 @@ trajectory test checks the agent actually loads it.
 ## Tools Used
 | Tool | What it does | What it enables |
 |------|--------------|------------------------------|
-| `read_log` | Reads any CI log (GitHub Actions/Jenkins/GitLab); excerpts long logs around real errors | format-agnostic + redacts secrets + failure fingerprint |
+| `read_log` | Reads any CI log (GitHub Actions/Jenkins/GitLab), plain, `.gz` or zipped; excerpts long logs around real errors | format-agnostic + redacts secrets + failure fingerprint |
 | `parse_junit_results` | Parses JUnit/pytest/Surefire XML: failures, errors, flaky reruns | exact, reliable parsing |
 | `fetch_github_actions_log` | Pulls only the **failed steps** of a run directly from GitHub, grouped by job/step | acts on live data — no file needed |
 | `get_pr_changes` | Per-file PR diffs, **files named in the failure first**, within a line budget | tests whether the PR caused it — vs pre-existing/flaky |
@@ -125,6 +125,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same PR cancels the older run, so reviews don't race.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test-and-review:
     runs-on: ubuntu-24.04   # pinned: ubuntu-latest is moving to Ubuntu 26
@@ -139,6 +144,7 @@ jobs:
       PR_AUTHOR: ${{ github.event.pull_request.user.login }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       PIPELINE_REVIEWER_MEMORY: .pipeline-reviewer-memory/failures.json
+      PIPELINE_REVIEWER_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}   # re-runs aren't new occurrences
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
@@ -167,6 +173,7 @@ jobs:
           test "$(git -C reviewer rev-parse HEAD)" = "$REVIEWER_SHA"
 
       - name: AI review
+        id: review
         if: steps.tests.outputs.code != '0' && env.HAS_GEMINI_KEY == 'true'
         env:
           GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -190,6 +197,12 @@ jobs:
             python reviewer/post_review.py --repo "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --review review.md
           fi
 
+      - name: Warn when the AI review was skipped (quota, rate limit)
+        if: steps.review.outputs.review_error != ''
+        env:
+          REVIEW_ERROR: ${{ steps.review.outputs.review_error }}
+        run: echo "::warning title=AI review skipped::$REVIEW_ERROR (details on the run summary page)"
+
       - name: Mark the review resolved when CI passes
         if: steps.tests.outputs.code == '0' && env.PR_NUMBER != '' && env.HAS_GEMINI_KEY == 'true'
         env:
@@ -208,6 +221,14 @@ jobs:
 ```
 Untrusted values (PR author, SHAs, numbers) are passed through `env:` and quoted, never
 pasted into `run:` with `${{ }}`, so they can't inject shell commands.
+
+- **`--sha "$HEAD_SHA"`** also guards against races: if the PR has moved past that
+  commit by the time the review is ready, nothing is posted (the newer run will post),
+  so a slow old run can't overwrite a newer review. Pass the PR head SHA, never
+  `GITHUB_SHA` (on `pull_request` events that is a temporary merge commit).
+- **Matrix builds:** add `--key "${{ matrix.python }}"` (or the job name, via `env:`) to
+  every `post_review.py` call, so each matrix job keeps its own comment instead of
+  overwriting the others'.
 
 ## Evaluation Results
 `eval/run_eval.py` scores the agent on **16 labelled scenarios**. Each review is graded
@@ -291,7 +312,10 @@ release. **See
 ### Recurrence memory in CI
 Failures are matched by a **fingerprint computed in code** from the normalized error
 text (timestamps, line numbers, hashes, temp and runner paths stripped), so the same
-failure is recognised however the model describes it. To keep the memory between
+failure is recognised however the model describes it. Occurrences are counted per
+**distinct commit** (`PIPELINE_REVIEWER_COMMIT`, falling back to `GITHUB_SHA`), so
+re-running CI on the same commit doesn't inflate "seen N times"; failures not seen
+for 180 days are forgotten. To keep the memory between
 runs, point `PIPELINE_REVIEWER_MEMORY` at a cached path. Use separate restore/save
 steps so the cache is saved even though the job failed. Actions are pinned to full
 commit SHAs, like the rest of the workflows:

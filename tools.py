@@ -7,6 +7,7 @@ in code; the LLM does the reasoning. `check_package` reaches LIVE data
 """
 
 import datetime
+import gzip
 import hashlib
 import json
 import os
@@ -17,6 +18,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+import zipfile
+import zlib
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 # Point this at a path your CI caches (e.g. with actions/cache) so recurrence
@@ -406,28 +409,110 @@ def _open_regular_file(file_path: str):
     return path, os.path.getsize(path), None
 
 
+_ZIP_MAX_MEMBERS = 200
+_TEXT_MEMBER = re.compile(r"(?:\.(?:txt|log|out|err)|/[^./]+|^[^./]+)$", re.I)
+
+
+def _read_gzip(path: str, cap: int) -> tuple:
+    """Decompress at most cap bytes, so a small .gz can't expand without limit."""
+    try:
+        with gzip.open(path, "rb") as f:
+            data = f.read(cap + 1)
+    except (OSError, EOFError, zlib.error) as e:
+        return b"", f"could not decompress gzip file: {str(e)[:80]}"
+    if len(data) > cap:
+        data = data[:cap] + b"\n... (decompressed log truncated at the size limit) ...\n"
+    return data, None
+
+
+def _read_zip(path: str, cap: int) -> tuple:
+    """GitHub's 'Download log archive' is a zip of one text file per job/step.
+    Concatenate the text members (with a header each), within cap bytes."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            members = [m for m in z.infolist()
+                       if not m.is_dir() and _TEXT_MEMBER.search(m.filename)][:_ZIP_MAX_MEMBERS]
+            if not members:
+                return b"", "zip file contains no text logs"
+            out, budget = [], cap
+            for m in sorted(members, key=lambda m: m.filename):
+                if budget <= 0:
+                    out.append(b"\n... (remaining files omitted: size limit) ...\n")
+                    break
+                with z.open(m) as f:
+                    chunk = f.read(budget)
+                out.append(f"\n===== {m.filename} =====\n".encode("utf-8", "replace") + chunk)
+                budget -= len(chunk)
+            return b"".join(out), None
+    except (zipfile.BadZipFile, OSError, RuntimeError, NotImplementedError) as e:
+        return b"", f"could not read zip file: {str(e)[:80]}"
+
+
+def _decode_text(data: bytes) -> tuple:
+    """Bytes -> text, refusing real binaries. Handles UTF-16 (e.g. PowerShell
+    logs), which is full of NUL bytes but is text. Returns (text, error)."""
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return data.decode("utf-16", errors="replace"), None
+    sample = data[:8192]
+    if sample:
+        nuls = sample.count(b"\x00")
+        # Control bytes other than tab/newline/CR/form feed/backspace/ESC (ANSI
+        # colours) are rare in text logs and common in binaries.
+        controls = sum(1 for b in sample if b < 32 and b not in (8, 9, 10, 12, 13, 27))
+        if nuls > len(sample) * 0.01 or controls > len(sample) * 0.10:
+            return "", "not a text log (binary content)"
+    return data.decode("utf-8", errors="replace"), None
+
+
 def _read_capped(file_path: str, cap: int) -> tuple:
-    """Read a text file without ever holding more than `cap` bytes of it.
-    Returns (text, error)."""
+    """Read a log without ever holding more than about `cap` bytes of it.
+    Plain text, gzip (.gz) and zip archives (GitHub's log download) are
+    supported; other binary files are refused. Returns (text, error)."""
     path, size, err = _open_regular_file(file_path)
     if err:
         return "", err.replace("file not found", "log file not found")
     with open(path, "rb") as f:
-        if size <= cap:
-            data = f.read(cap)   # still bounded, in case the file is growing
-        else:
-            head = f.read(cap // 4)
-            f.seek(-(cap - cap // 4), os.SEEK_END)
-            omitted = size - cap
-            data = head + f"\n... ({omitted} bytes omitted: log too large) ...\n".encode() + f.read()
-    return data.decode("utf-8", errors="replace"), None
+        magic = f.read(4)
+    if magic[:2] == b"\x1f\x8b":
+        data, err = _read_gzip(path, cap)
+    elif magic == b"PK\x03\x04":
+        data, err = _read_zip(path, cap)
+    else:
+        with open(path, "rb") as f:
+            if size <= cap:
+                data = f.read(cap)   # still bounded, in case the file is growing
+            else:
+                head = f.read(cap // 4)
+                f.seek(-(cap - cap // 4), os.SEEK_END)
+                omitted = size - cap
+                data = head + f"\n... ({omitted} bytes omitted: log too large) ...\n".encode() + f.read()
+        err = None
+    if err:
+        return "", err
+    return _decode_text(data)
+
+
+_MAX_LINE_CHARS = 1800
+_LINE_HEAD, _LINE_TAIL = 1400, 300
+
+
+def _cut_line(line: str) -> str:
+    """Cap one line's length (minified JSON, progress bars without newlines),
+    keeping its start and end. Run AFTER redaction, so a cut can't leave half
+    a secret behind for the patterns to miss."""
+    if len(line) <= _MAX_LINE_CHARS:
+        return line
+    cut = len(line) - _LINE_HEAD - _LINE_TAIL
+    return f"{line[:_LINE_HEAD]} ... [{cut} chars cut] ... {line[-_LINE_TAIL:]}"
 
 
 def read_log(file_path: str) -> dict:
     """Read any CI/CD or build/console log and return its redacted text.
 
-    Use for any non-XML log from any CI tool. Secrets are stripped first, along
-    with ANSI colour codes and leading timestamps. Logs over 200 lines are
+    Use for any non-XML log from any CI tool: plain text, a .gz file, or a zip
+    archive such as GitHub's log download. Secrets are stripped first, along
+    with ANSI colour codes and leading timestamps, and very long lines are cut
+    (start and end kept). Binary files are refused. Logs over 200 lines are
     excerpted: the first 10 lines, the last 60, and a window of context around
     each real error line (strong markers like '##[error]', 'Traceback',
     'BUILD FAILURE', 'Caused by:'; weak hints only if there are no strong
@@ -442,7 +527,7 @@ def read_log(file_path: str) -> dict:
     if err:
         return {"error": err}
 
-    lines = [_clean_line(ln) for ln in redact_secrets(raw).splitlines()]
+    lines = [_cut_line(_clean_line(ln)) for ln in redact_secrets(raw).splitlines()]
     total = len(lines)
     fp, basis = _log_fingerprint(lines)
     result = {"artifact_type": "raw_log", "line_count": total,
@@ -777,6 +862,37 @@ def _save_store(store: dict) -> None:
         raise
 
 
+_COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
+_MAX_COMMITS = 50              # distinct commits remembered per failure
+_MEMORY_TTL_DAYS = 180         # forget failures not seen for this long
+_MAX_ENTRIES = 2000            # and keep the store bounded
+
+
+def _current_commit():
+    """The commit under review, so re-runs of the same commit aren't counted
+    as new occurrences. Workflows set PIPELINE_REVIEWER_COMMIT to the PR head;
+    GITHUB_SHA is the fallback (stable across re-runs of the same event)."""
+    for var in ("PIPELINE_REVIEWER_COMMIT", "GITHUB_SHA"):
+        value = (os.environ.get(var) or "").strip().lower()
+        if _COMMIT_RE.match(value):
+            return value
+    return None
+
+
+def _prune(store: dict, now: datetime.datetime) -> None:
+    cutoff = now - datetime.timedelta(days=_MEMORY_TTL_DAYS)
+    for key in list(store):
+        try:
+            if datetime.datetime.fromisoformat(store[key].get("last_seen", "")) < cutoff:
+                del store[key]
+        except (ValueError, TypeError, AttributeError):
+            continue
+    if len(store) > _MAX_ENTRIES:
+        newest = sorted(store, key=lambda k: str(store[k].get("last_seen", "")), reverse=True)
+        for key in newest[_MAX_ENTRIES:]:
+            del store[key]
+
+
 def check_recurrence(signature: str, suggested_fix: str = "", fingerprint: str = "") -> dict:
     """Record this failure and report how often it has happened before, plus the
     fix suggested LAST time. This is the agent's persistent memory across runs,
@@ -803,17 +919,31 @@ def check_recurrence(signature: str, suggested_fix: str = "", fingerprint: str =
         key, matched_by = label, "signature"
 
     store = _load_store()
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    now_dt = datetime.datetime.now(datetime.timezone.utc)
+    now = now_dt.isoformat(timespec="seconds")
+    _prune(store, now_dt)
     entry = store.get(key, {"count": 0, "first_seen": now, "occurrences": [], "last_fix": ""})
-
-    times_before = entry["count"]
-    previous_fix = entry.get("last_fix", "")
+    commit = _current_commit()
+    seen_commits = entry.get("commits", [])
+    rerun = bool(commit) and commit in seen_commits
     previous_label = entry.get("label", "")
 
-    entry["count"] += 1
+    if rerun:
+        # Same commit again (a CI re-run): not a new occurrence. "Before" means
+        # on OTHER commits, and the previous fix is the one from an earlier commit.
+        times_before = max(entry["count"] - 1, 0)
+        previous_fix = entry.get("prev_commit_fix", "")
+    else:
+        times_before = entry["count"]
+        previous_fix = entry.get("last_fix", "")
+        entry["count"] += 1
+        entry["occurrences"] = (entry.get("occurrences", []) + [now])[-_MAX_OCCURRENCES:]
+        entry["prev_commit_fix"] = entry.get("last_fix", "")
+        if commit:
+            entry["commits"] = (seen_commits + [commit])[-_MAX_COMMITS:]
+
     entry["last_seen"] = now
     entry["label"] = label
-    entry["occurrences"] = (entry.get("occurrences", []) + [now])[-_MAX_OCCURRENCES:]
     if suggested_fix:
         entry["last_fix"] = suggested_fix.strip()[:300]
     store[key] = entry
@@ -829,6 +959,9 @@ def check_recurrence(signature: str, suggested_fix: str = "", fingerprint: str =
         "previous_fix": previous_fix or None,
         "recurrence_interval": _avg_interval_str(entry["occurrences"]) or None,
     }
+    if rerun:
+        result["same_commit_rerun"] = True
+        result["note"] = ("this commit was already reviewed (a re-run); counts exclude it")
     if matched_by == "fingerprint":
         result["fingerprint"] = fp
         if previous_label and previous_label != label:
@@ -875,7 +1008,7 @@ def _split_gha_line(line: str) -> tuple:
         job, step, text = parts
     else:
         job, step, text = "", "", line
-    return job.strip(), step.strip(), _clean_line(text)
+    return job.strip(), step.strip(), _cut_line(_clean_line(text))
 
 
 def _excerpt(lines: list) -> list:
