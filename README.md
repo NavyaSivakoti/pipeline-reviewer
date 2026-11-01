@@ -70,7 +70,7 @@ trajectory test checks the agent actually loads it.
 ## Tools Used
 | Tool | What it does | What it enables |
 |------|--------------|------------------------------|
-| `read_log` | Reads any CI log (GitHub Actions/Jenkins/GitLab); excerpts long logs around real errors | format-agnostic + redacts secrets + failure fingerprint |
+| `read_log` | Reads any CI log (GitHub Actions/Jenkins/GitLab), plain, `.gz` or zipped; excerpts long logs around real errors | format-agnostic + redacts secrets + failure fingerprint |
 | `parse_junit_results` | Parses JUnit/pytest/Surefire XML: failures, errors, flaky reruns | exact, reliable parsing |
 | `fetch_github_actions_log` | Pulls only the **failed steps** of a run directly from GitHub, grouped by job/step | acts on live data — no file needed |
 | `get_pr_changes` | Per-file PR diffs, **files named in the failure first**, within a line budget | tests whether the PR caused it — vs pre-existing/flaky |
