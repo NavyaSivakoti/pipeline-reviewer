@@ -777,6 +777,37 @@ def _save_store(store: dict) -> None:
         raise
 
 
+_COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
+_MAX_COMMITS = 50              # distinct commits remembered per failure
+_MEMORY_TTL_DAYS = 180         # forget failures not seen for this long
+_MAX_ENTRIES = 2000            # and keep the store bounded
+
+
+def _current_commit():
+    """The commit under review, so re-runs of the same commit aren't counted
+    as new occurrences. Workflows set PIPELINE_REVIEWER_COMMIT to the PR head;
+    GITHUB_SHA is the fallback (stable across re-runs of the same event)."""
+    for var in ("PIPELINE_REVIEWER_COMMIT", "GITHUB_SHA"):
+        value = (os.environ.get(var) or "").strip().lower()
+        if _COMMIT_RE.match(value):
+            return value
+    return None
+
+
+def _prune(store: dict, now: datetime.datetime) -> None:
+    cutoff = now - datetime.timedelta(days=_MEMORY_TTL_DAYS)
+    for key in list(store):
+        try:
+            if datetime.datetime.fromisoformat(store[key].get("last_seen", "")) < cutoff:
+                del store[key]
+        except (ValueError, TypeError, AttributeError):
+            continue
+    if len(store) > _MAX_ENTRIES:
+        newest = sorted(store, key=lambda k: str(store[k].get("last_seen", "")), reverse=True)
+        for key in newest[_MAX_ENTRIES:]:
+            del store[key]
+
+
 def check_recurrence(signature: str, suggested_fix: str = "", fingerprint: str = "") -> dict:
     """Record this failure and report how often it has happened before, plus the
     fix suggested LAST time. This is the agent's persistent memory across runs,
@@ -803,17 +834,31 @@ def check_recurrence(signature: str, suggested_fix: str = "", fingerprint: str =
         key, matched_by = label, "signature"
 
     store = _load_store()
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    now_dt = datetime.datetime.now(datetime.timezone.utc)
+    now = now_dt.isoformat(timespec="seconds")
+    _prune(store, now_dt)
     entry = store.get(key, {"count": 0, "first_seen": now, "occurrences": [], "last_fix": ""})
-
-    times_before = entry["count"]
-    previous_fix = entry.get("last_fix", "")
+    commit = _current_commit()
+    seen_commits = entry.get("commits", [])
+    rerun = bool(commit) and commit in seen_commits
     previous_label = entry.get("label", "")
 
-    entry["count"] += 1
+    if rerun:
+        # Same commit again (a CI re-run): not a new occurrence. "Before" means
+        # on OTHER commits, and the previous fix is the one from an earlier commit.
+        times_before = max(entry["count"] - 1, 0)
+        previous_fix = entry.get("prev_commit_fix", "")
+    else:
+        times_before = entry["count"]
+        previous_fix = entry.get("last_fix", "")
+        entry["count"] += 1
+        entry["occurrences"] = (entry.get("occurrences", []) + [now])[-_MAX_OCCURRENCES:]
+        entry["prev_commit_fix"] = entry.get("last_fix", "")
+        if commit:
+            entry["commits"] = (seen_commits + [commit])[-_MAX_COMMITS:]
+
     entry["last_seen"] = now
     entry["label"] = label
-    entry["occurrences"] = (entry.get("occurrences", []) + [now])[-_MAX_OCCURRENCES:]
     if suggested_fix:
         entry["last_fix"] = suggested_fix.strip()[:300]
     store[key] = entry
@@ -829,6 +874,9 @@ def check_recurrence(signature: str, suggested_fix: str = "", fingerprint: str =
         "previous_fix": previous_fix or None,
         "recurrence_interval": _avg_interval_str(entry["occurrences"]) or None,
     }
+    if rerun:
+        result["same_commit_rerun"] = True
+        result["note"] = ("this commit was already reviewed (a re-run); counts exclude it")
     if matched_by == "fingerprint":
         result["fingerprint"] = fp
         if previous_label and previous_label != label:

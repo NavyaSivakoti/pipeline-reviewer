@@ -144,6 +144,7 @@ jobs:
       PR_AUTHOR: ${{ github.event.pull_request.user.login }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       PIPELINE_REVIEWER_MEMORY: .pipeline-reviewer-memory/failures.json
+      PIPELINE_REVIEWER_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}   # re-runs aren't new occurrences
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
@@ -304,7 +305,10 @@ release. **See
 ### Recurrence memory in CI
 Failures are matched by a **fingerprint computed in code** from the normalized error
 text (timestamps, line numbers, hashes, temp and runner paths stripped), so the same
-failure is recognised however the model describes it. To keep the memory between
+failure is recognised however the model describes it. Occurrences are counted per
+**distinct commit** (`PIPELINE_REVIEWER_COMMIT`, falling back to `GITHUB_SHA`), so
+re-running CI on the same commit doesn't inflate "seen N times"; failures not seen
+for 180 days are forgotten. To keep the memory between
 runs, point `PIPELINE_REVIEWER_MEMORY` at a cached path. Use separate restore/save
 steps so the cache is saved even though the job failed. Actions are pinned to full
 commit SHAs, like the rest of the workflows:
